@@ -32,10 +32,24 @@ Außerdem:
 
 ## Steuerung
 
-| | PC | Handy |
-|---|---|---|
-| Bewegen | WASD / Pfeiltasten | links auf den Bildschirm tippen und ziehen |
-| Dash / Pups | Leertaste | DASH-Knopf rechts |
+| | PC | Handy | Gamepad |
+|---|---|---|---|
+| Bewegen | WASD / Pfeiltasten | links auf den Bildschirm tippen und ziehen | Stick |
+| Dash | Leertaste antippen | DASH-Knopf antippen | A |
+| Aufgeladener Dash | Leertaste halten, loslassen | DASH-Knopf halten | A halten |
+| Stemmen | Shift oder K | STEMMEN-Knopf | B / X / Schultertasten |
+| Pups (als Geist) | Leertaste | PUPS-Knopf | A |
+| Emotes | 1–5 | Knöpfe oben rechts | – |
+
+## Kämpfen wie ein Profi
+
+**Stein-Schere-Papier:** Dash schlägt Herumstehen · Stemmen schlägt Dash · voll aufgeladener Dash bricht durchs Stemmen.
+
+- **Aufladen:** Halten macht den Dash stärker (voll nach 0,6 s). Dabei bist du langsamer, ziehst dich zusammen und leuchtest. Alle sehen also, dass gleich etwas kommt.
+- **Stemmen:** Du krallst dich kurz fest und nimmst kaum Knockback. Wer **genau im Moment des Aufpralls** stemmt, wirft den Angreifer zurück: **Konter!**
+- **Durchbruch:** Ein voll aufgeladener Dash bricht durchs Stemmen, und der Gestemmte ist kurz benommen.
+- **Kantenwackeln:** Wer knapp über den Rand rutscht, rudert kurz mit den Ärmchen. Gegensteuern oder ein Dash zurück rettet dich.
+- **Das letzte Duell:** Sind im Modus „Letzter Blob“ nur noch zwei übrig, zoomt die Kamera heran. Der entscheidende Rauswurf läuft in Zeitlupe.
 
 Gamepads funktionieren auch.
 

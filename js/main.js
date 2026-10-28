@@ -2,7 +2,8 @@ import { Game, CARDS, MODES, MAPS, ITEMS, HATS, EMOTES, MAX_PLAYERS } from './si
 import { Host, Client } from './net.js';
 import { View } from './render.js';
 import { initInput, readInput } from './input.js';
-import { sfx, unlockAudio, toggleMute } from './audio.js';
+import { sfx, unlockAudio, toggleMute, chargeStart, chargeStop } from './audio.js';
+import { T } from './tuning.js';
 import { initDebug, DEBUG } from './debug.js';
 
 const $ = (id) => document.getElementById(id);
@@ -348,15 +349,38 @@ function handleEvent(e, s) {
   const mine = e.id === myId;
   switch (e.k) {
     case 'boing': sfx.boing(e.p); break;
-    case 'dash': sfx.dash(); break;
-    case 'plumps': sfx.plumps(); if (mine) vibrate(120); break;
+    case 'charge': chargeStart(e.id, T.DASH_CHARGE); break;
+    case 'dash': chargeStop(e.id); sfx.dash(); if (e.c > 0.5) sfx.hit(e.c * 0.5); break;
+    case 'brace': chargeStop(e.id); sfx.brace(); break;
+    case 'counter':
+      sfx.counter(); vibrate(60);
+      if (e.id === myId || e.by === myId) tip('counter', '<b>KONTER!</b> Wer genau im Moment des Aufpralls stemmt, wirft den Angreifer zurück.');
+      break;
+    case 'break':
+      sfx.break(); vibrate(60);
+      if (e.id === myId || e.victim === myId) tip('break', '<b>DURCHBRUCH!</b> Ein voll aufgeladener Dash bricht durchs Stemmen.');
+      break;
+    case 'hit': sfx.hit(e.p); break;
+    case 'wobble':
+      sfx.wobble();
+      if (mine) { vibrate(30); tip('edge', '<b>Kante!</b> Steuer zurück oder dash Richtung Insel – du kannst dich noch retten!'); }
+      break;
+    case 'save': sfx.save(); if (mine) toast('😅 Gerettet!'); break;
+    case 'ko': sfx.ko(); koBanner(s, e.id, e.victim); break;
+    case 'duel': sfx.duel(); koText('<b>Das letzte Duell!</b>'); break;
+    case 'plumps': chargeStop(e.id); sfx.plumps(); if (mine) vibrate(120); break;
     case 'boom': sfx.boom(); vibrate(60); break;
     case 'pups': sfx.pups(); break;
     case 'bumper': sfx.bumper(); break;
     case 'swap': sfx.swap(); toast('🔀 Platztausch!'); break;
     case 'potato': sfx.potato(); if (mine) toast('🥔 Du hast die Kartoffel! Weitergeben!'); break;
     case 'count': sfx.count(); break;
-    case 'go': sfx.go(); flashGo(); break;
+    case 'go':
+      sfx.go(); flashGo();
+      tip('controls', isTouch
+        ? '<b>DASH</b> antippen = kurz · <b>halten</b> = aufladen · <b>STEMMEN</b> fängt Dashes ab'
+        : '<b>Leertaste</b> antippen = Dash · <b>halten</b> = aufladen · <b>Shift</b> = Stemmen (fängt Dashes ab)');
+      break;
     case 'card': sfx.card(); break;
     case 'win': sfx.win(); break;
     case 'draw': sfx.draw(); break;
@@ -377,12 +401,41 @@ function handleEvent(e, s) {
 
 function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch { /* egal */ } }
 
-function toast(html) {
+function toast(html, cls = '', ms = 2700) {
   const el = document.createElement('div');
-  el.className = 'toast';
+  el.className = 'toast ' + cls;
   el.innerHTML = html;
   $('toasts').appendChild(el);
-  setTimeout(() => el.remove(), 2700);
+  setTimeout(() => el.remove(), ms);
+}
+
+// Erklärungen erscheinen nur beim ersten Mal (gemerkt im Browser)
+const seenTips = new Set((store.get('plumps-tips') || '').split(',').filter(Boolean));
+function tip(key, html) {
+  if (seenTips.has(key)) return;
+  seenTips.add(key);
+  store.set('plumps-tips', [...seenTips].join(','));
+  toast('💡 ' + html, 'tip', 6100);
+}
+
+// Große Einblendung: wer wen ins Wasser geschickt hat
+const KO_TEXTS = [
+  (a, b) => `<b>${a}</b> schickt <b>${b}</b> baden!`,
+  (a, b) => `<b>${a}</b> versenkt <b>${b}</b>!`,
+  (a, b) => `<b>${b}</b> geht baden – danke, <b>${a}</b>!`,
+  (a, b) => `<b>${a}</b> schubst <b>${b}</b> ins Wasser!`,
+];
+let koN = 0;
+function koText(html) {
+  const el = $('ko');
+  el.innerHTML = html;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+function koBanner(s, hitter, victim) {
+  // In Modi mit Wiederkehr fällt man ständig – dort nur, wenn man selbst beteiligt ist
+  const big = s.mo === 'klassik' || s.mo === 'leben' || hitter === myId || victim === myId;
+  if (!big) return;
+  koText(KO_TEXTS[koN++ % KO_TEXTS.length](nameOf(s, hitter), nameOf(s, victim)));
 }
 
 let goUntil = 0;
@@ -457,7 +510,7 @@ function updateUI(s) {
     if (me.st === 'ghost') hint = `👻 Du bist ein Geist! ${isTouch ? 'PUPS-Knopf' : 'Leertaste'} = Pups-Welle. Schubs die Lebenden runter!`;
     else if (me.st === 'falling' && md.respawn && (s.mo !== 'leben' || me.lv > 0)) hint = 'Plumps! Gleich geht\'s weiter …';
     else if (performance.now() < modeHintUntil) hint = `${md.emoji} ${md.desc}`;
-    else if (s.rd === 1 && !isTouch) hint = 'WASD/Pfeile bewegen · Leertaste = Dash · 1–5 = Emotes';
+    else if (s.rd === 1 && !isTouch) hint = 'WASD bewegen · Leertaste tippen/halten = Dash · Shift = Stemmen · 1–5 = Emotes';
   }
   setHTML('hint', hint);
 
@@ -467,7 +520,12 @@ function updateUI(s) {
     const ghost = me.st === 'ghost';
     btn.textContent = ghost ? 'PUPS' : 'DASH';
     btn.classList.toggle('pups', ghost);
+    btn.classList.toggle('charging', me.ch >= 0);
     btn.style.setProperty('--cd', Math.max(0, Math.min(1, me.dc)));
+    btn.style.setProperty('--charge', Math.max(0, me.ch));
+    const bb = $('braceBtn');
+    bb.classList.toggle('ghost', ghost || me.st !== 'alive');
+    bb.style.setProperty('--cd', Math.max(0, Math.min(1, me.bc || 0)));
   }
 
   // Kartenwahl
@@ -507,7 +565,7 @@ function updateUI(s) {
   }
 }
 
-initInput($('joy'), $('knob'), $('dashBtn'));
+initInput($('joy'), $('knob'), $('dashBtn'), $('braceBtn'));
 const debug = initDebug({ getGame: () => game, getRole: () => mode, getPings: () => pings, view });
 
 // Im Menü spielen ein paar Bots im Hintergrund – jedes Mal ein anderer Modus

@@ -134,3 +134,20 @@ button.mini { padding: 6px 12px; font-size: 16px; }
 #dbgSliders.off { opacity: .4; pointer-events: none; }
 #debug .dbg-row { display: flex; gap: 6px; margin: 6px 0; }
 #debug .dbg-check { display: flex; gap: 6px; align-items: center; }
+
+/* Phase 1: Stemmen-Knopf, Rauswurf-Einblendung */
+#braceBtn { position: absolute; right: max(33px, calc(env(safe-area-inset-right) + 11px)); bottom: max(150px, calc(env(safe-area-inset-bottom) + 122px)); width: 82px; height: 82px; border-radius: 50%; font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: 14px; background: conic-gradient(#9fb3d6 calc((1 - var(--cd, 0)) * 360deg), rgba(255,255,255,0.2) 0); color: #1d2a3d; box-shadow: 0 5px 0 #5d6f8c; }
+#braceBtn.down { transform: translateY(4px); box-shadow: 0 1px 0 #5d6f8c; }
+#braceBtn.ghost { display: none; }
+#dashBtn.charging { box-shadow: 0 5px 0 #c48a00, 0 0 calc(10px + var(--charge, 0) * 30px) #fff3a0; transform: scale(calc(1 - var(--charge, 0) * 0.08)); }
+#ko { position: absolute; top: 24%; left: 50%; transform: translateX(-50%); font-family: 'Lilita One', sans-serif; font-size: clamp(22px, 5vw, 38px); color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,0.45), 0 0 20px rgba(0,0,0,0.4); white-space: nowrap; text-align: center; opacity: 0; }
+#ko.show { animation: koIn 1.8s ease-out forwards; }
+#ko b { color: var(--accent); font-weight: 400; }
+@keyframes koIn { 0% { opacity: 0; transform: translateX(-50%) scale(1.8) rotate(-4deg); } 12% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-2deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) scale(0.95) rotate(-2deg); } }
+.toast.tip { background: rgba(20, 60, 110, 0.92); border: 2px solid var(--accent); white-space: normal; max-width: min(92vw, 520px); text-align: center; animation-duration: 6s; }
+@media (pointer: coarse) {
+  /* Hinweise links unten, damit sie nicht unter den Knöpfen liegen */
+  #hint { left: 12px; transform: none; max-width: calc(100% - 150px); text-align: left; border-radius: 16px; font-size: 13px; }
+  #emotes { top: max(64px, calc(env(safe-area-inset-top) + 54px)); right: 10px; transform: none; flex-direction: row; gap: 4px; }
+  #emotes button { padding: 4px 6px; font-size: 18px; }
+}

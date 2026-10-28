@@ -34,7 +34,10 @@
         <summary>So geht's</summary>
         <ul>
           <li><b>Bewegen:</b> WASD / Pfeiltasten · Handy: links auf den Bildschirm tippen und ziehen</li>
-          <li><b>Dash:</b> Leertaste · Handy: DASH-Knopf. Wer gedasht wird, fliegt weit!</li>
+          <li><b>Dash:</b> Leertaste antippen = kurzer, schneller Dash. <b>Halten</b> = aufladen, loslassen = mächtiger Dash. Handy: DASH-Knopf.</li>
+          <li><b>Stemmen:</b> Shift oder K · Handy: STEMMEN-Knopf. Krall dich fest und nimm kaum Knockback. Genau im Moment des Aufpralls gestemmt, fliegt der Angreifer zurück (<b>Konter</b>).</li>
+          <li><b>Stein-Schere-Papier:</b> Dash schlägt Herumstehen · Stemmen schlägt Dash · voll aufgeladener Dash bricht durchs Stemmen.</li>
+          <li><b>Kante:</b> Rutschst du knapp über den Rand, ruderst du kurz mit den Armen. Gegensteuern oder Dash zurück – dann bist du gerettet!</li>
           <li><b>Rundensieg:</b> Wer als Letzter auf der Insel steht, bekommt 1 Punkt.</li>
           <li><b>Geister:</b> Rausgeflogen? Du schwebst weiter und kannst mit <b>PUPS</b> (Leertaste) Lebende wegschubsen.</li>
           <li><b>6 Spielmodi</b> im Wechsel: Letzter Blob, Drei Leben, Hügelkönig, Münzrausch, Farbkampf, Glibber-Fangen – auf 10 verschiedenen Inseln.</li>
@@ -89,6 +92,7 @@
     <div id="cardBadge" class="hidden"></div>
     <div id="banner"></div>
     <div id="hint"></div>
+    <div id="ko"></div>
     <div id="toasts"></div>
     <div id="emotes"></div>
     <div id="topBtns">
@@ -124,6 +128,7 @@
   <!-- Touch-Steuerung -->
   <div id="touch" class="hidden">
     <div id="joy"><div id="knob"></div></div>
+    <button id="braceBtn">STEMMEN</button>
     <button id="dashBtn">DASH</button>
   </div>
 
