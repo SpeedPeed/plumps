@@ -55,6 +55,54 @@ function noise(dur, vol = 0.3, freq = 1000, delay = 0) {
   src.start(t);
 }
 
+// Ein schwankender Ton (Vibrato), z. B. für das Wackeln an der Kante
+function wobbleTone(f, dur, vol, rate) {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  const lfo = ctx.createOscillator(), lg = ctx.createGain();
+  o.type = 'triangle'; o.frequency.value = f;
+  lfo.frequency.value = rate; lg.gain.value = f * 0.25;
+  lfo.connect(lg).connect(o.frequency);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(master);
+  o.start(t); lfo.start(t);
+  o.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
+}
+
+// Aufladeton: steigt, solange der Dash geladen wird; pro Spieler höchstens einer
+const charges = new Map();
+export function chargeStart(id, dur) {
+  chargeStop(id);
+  if (!ctx || muted) return;
+  const t = ctx.currentTime;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(160, t);
+  o.frequency.exponentialRampToValueAtTime(620, t + dur);
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass'; f.frequency.value = 1400;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.07, t + 0.05);
+  o.connect(f).connect(g).connect(master);
+  o.start(t);
+  o.stop(t + 1.5);
+  charges.set(id, { o, g });
+}
+export function chargeStop(id) {
+  const c = charges.get(id);
+  if (!c || !ctx) return;
+  charges.delete(id);
+  const t = ctx.currentTime;
+  try {
+    c.g.gain.cancelScheduledValues(t);
+    c.g.gain.setValueAtTime(Math.max(0.0001, c.g.gain.value), t);
+    c.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    c.o.stop(t + 0.06);
+  } catch { /* schon gestoppt */ }
+}
+
 export const sfx = {
   boing: (p = 0.5) => tone('sine', 180 + p * 200, 520 + p * 300, 0.18, 0.15 + p * 0.2),
   dash: () => noise(0.15, 0.15, 2500),
@@ -78,5 +126,16 @@ export const sfx = {
   tag: () => { tone('sawtooth', 200, 90, 0.3, 0.15); noise(0.2, 0.15, 500); },
   zone: () => tone('triangle', 500, 750, 0.2, 0.15),
   matchball: () => [392, 523, 659].forEach((f, i) => tone('square', f, f, 0.18, 0.1, i * 0.12)),
+  brace: () => { tone('square', 140, 55, 0.12, 0.18); noise(0.12, 0.2, 500); },
+  counter: () => {
+    [880, 1318, 1760].forEach((f, i) => tone('square', f, f * 0.98, 0.35, 0.09, i * 0.01));
+    noise(0.25, 0.25, 4000, 0.02);
+  },
+  break: () => { noise(0.35, 0.45, 2500); tone('sawtooth', 320, 70, 0.3, 0.2); tone('square', 90, 40, 0.25, 0.2, 0.05); },
+  wobble: () => wobbleTone(520, 0.4, 0.14, 14),
+  save: () => { tone('triangle', 420, 900, 0.12, 0.18); tone('triangle', 900, 1250, 0.12, 0.15, 0.1); },
+  hit: (p = 0.5) => { noise(0.18, 0.25 + p * 0.25, 1200); tone('sine', 220, 70, 0.25, 0.3 + p * 0.2); },
+  ko: () => { tone('sawtooth', 240, 110, 0.6, 0.12, 0.12); tone('sawtooth', 300, 140, 0.6, 0.08, 0.12); },
+  duel: () => { tone('square', 196, 196, 0.25, 0.12); tone('square', 147, 147, 0.45, 0.12, 0.28); noise(0.5, 0.12, 300, 0.28); },
   champion: () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.25, 0.25, i * 0.14)),
 };

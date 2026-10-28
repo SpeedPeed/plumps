@@ -1,26 +1,40 @@
-// Tastatur + Touch-Joystick. Liefert {mx, my, d}; d zählt Dash-Drücke hoch,
-// damit kein Dash verloren geht, auch wenn ein Paket zu spät kommt.
+// Tastatur, Touch-Joystick und Gamepad.
+// Liefert { mx, my, d, u, b, h }:
+//   d = Dash gedrückt (Zähler), u = Dash losgelassen (Zähler), h = Dash wird gerade gehalten,
+//   b = Stemmen gedrückt (Zähler).
+// Zähler statt Ein/Aus, damit kein kurzer Tipp verloren geht, auch wenn ein Paket zu spät kommt.
 
 const keys = new Set();
-let dashCount = 0;
+let dashDown = 0, dashUp = 0, braceDown = 0;
+let dashHeld = false;
 const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const padWas = [];
 
-const DASH_KEYS = ['Space', 'ShiftLeft', 'ShiftRight', 'KeyK', 'KeyJ', 'Enter'];
+const DASH_KEYS = ['Space', 'KeyJ', 'Enter', 'NumpadEnter'];
+const BRACE_KEYS = ['ShiftLeft', 'ShiftRight', 'KeyK', 'KeyL'];
 
-export function initInput(joyEl, knobEl, dashBtn) {
+function dashPress() { if (!dashHeld) { dashHeld = true; dashDown++; } }
+function dashRelease() { if (dashHeld) { dashHeld = false; dashUp++; } }
+
+export function initInput(joyEl, knobEl, dashBtn, braceBtn) {
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
-    if (DASH_KEYS.includes(e.code) && !e.repeat) dashCount++;
+    if (!e.repeat) {
+      if (DASH_KEYS.includes(e.code)) dashPress();
+      if (BRACE_KEYS.includes(e.code)) braceDown++;
+    }
     keys.add(e.code);
     if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
   });
-  window.addEventListener('keyup', (e) => keys.delete(e.code));
-  window.addEventListener('blur', () => keys.clear());
+  window.addEventListener('keyup', (e) => {
+    keys.delete(e.code);
+    if (DASH_KEYS.includes(e.code) && !DASH_KEYS.some(k => keys.has(k))) dashRelease();
+  });
+  window.addEventListener('blur', () => { keys.clear(); dashRelease(); });
 
   const zone = joyEl.parentElement;
   zone.addEventListener('pointerdown', (e) => {
-    if (e.target === dashBtn) return;
+    if (e.target === dashBtn || e.target === braceBtn) return;
     if (e.clientX > window.innerWidth * 0.55 || stick.id !== null) return;
     stick.id = e.pointerId;
     stick.ox = e.clientX; stick.oy = e.clientY;
@@ -46,9 +60,34 @@ export function initInput(joyEl, knobEl, dashBtn) {
   window.addEventListener('pointerup', end);
   window.addEventListener('pointercancel', end);
 
-  dashBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); dashCount++; dashBtn.classList.add('down'); });
-  dashBtn.addEventListener('pointerup', () => dashBtn.classList.remove('down'));
-  dashBtn.addEventListener('pointerleave', () => dashBtn.classList.remove('down'));
+  // DASH-Knopf: gedrückt halten lädt auf, loslassen löst aus
+  let dashPointer = null;
+  dashBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    dashPointer = e.pointerId;
+    try { dashBtn.setPointerCapture(e.pointerId); } catch { /* egal */ }
+    dashPress();
+    dashBtn.classList.add('down');
+  });
+  const dashEnd = (e) => {
+    if (e.pointerId !== dashPointer) return;
+    dashPointer = null;
+    dashRelease();
+    dashBtn.classList.remove('down');
+  };
+  dashBtn.addEventListener('pointerup', dashEnd);
+  dashBtn.addEventListener('pointercancel', dashEnd);
+  dashBtn.addEventListener('lostpointercapture', dashEnd);
+
+  braceBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    braceDown++;
+    braceBtn.classList.add('down');
+  });
+  const braceEnd = () => braceBtn.classList.remove('down');
+  braceBtn.addEventListener('pointerup', braceEnd);
+  braceBtn.addEventListener('pointercancel', braceEnd);
+  braceBtn.addEventListener('pointerleave', braceEnd);
 }
 
 export function readInput() {
@@ -62,11 +101,16 @@ export function readInput() {
   for (const gp of pads) {
     if (!gp) continue;
     if (Math.abs(gp.axes[0]) > 0.2 || Math.abs(gp.axes[1]) > 0.2) { mx = gp.axes[0]; my = gp.axes[1]; }
-    const pressed = gp.buttons[0]?.pressed || gp.buttons[1]?.pressed;
-    if (pressed && !padWas[gp.index]) dashCount++;
-    padWas[gp.index] = pressed;
+    const was = padWas[gp.index] || {};
+    // A = Dash (halten lädt auf), B/X/Schultertasten = Stemmen
+    const dash = !!gp.buttons[0]?.pressed;
+    const brace = !!(gp.buttons[1]?.pressed || gp.buttons[2]?.pressed || gp.buttons[4]?.pressed || gp.buttons[5]?.pressed);
+    if (dash && !was.dash) dashPress();
+    if (!dash && was.dash) dashRelease();
+    if (brace && !was.brace) braceDown++;
+    padWas[gp.index] = { dash, brace };
   }
   const m = Math.hypot(mx, my);
   if (m > 1) { mx /= m; my /= m; }
-  return { mx, my, d: dashCount };
+  return { mx, my, d: dashDown, u: dashUp, b: braceDown, h: dashHeld ? 1 : 0 };
 }
