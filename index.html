@@ -29,6 +29,7 @@
         <button id="btnJoin" class="btn">Beitreten</button>
       </div>
       <button id="btnSolo" class="btn ghost"><i data-icon="bot"></i>Gegen Bots üben</button>
+      <button id="btnProfile" class="btn ghost profilebtn"><img id="menuAvatar" class="av" alt=""><span>Dein Blob · Stufe <b id="menuLevel">1</b></span><span class="xpbar mini"><i id="menuXpBar"></i></span></button>
       <p id="menuErr" class="err"></p>
       <div class="row small">
         <details class="howto">
@@ -45,7 +46,8 @@
             <li><b>Finale:</b> Mit Matchball musst du eine Runde „Letzter Blob“ gewinnen. Sonst geht's normal weiter.</li>
             <li><b>Königsmord:</b> Wer den Führenden (Krone) runterschubst, kriegt +1.</li>
             <li><b>Power-ups</b> in Seifenblasen: einfach drüberlaufen.</li>
-            <li><b>Emotes:</b> Tasten 1–5.</li>
+            <li><b>Emotes:</b> Tasten 1–8 (mehr gibt's mit höheren Stufen).</li>
+            <li><b>Stufen:</b> Jedes Match bringt XP. Neue Stufen schalten Hüte, Spuren, Emotes und Siegestänze frei – unter „Dein Blob“.</li>
           </ul>
         </details>
         <button class="btn icon settingsBtn" title="Einstellungen"><i data-icon="zahnrad"></i></button>
@@ -67,6 +69,7 @@
         <button id="hatNext" class="btn mini">▶</button>
       </div>
       <div id="colorRow" class="colorrow" aria-label="Farbe wählen"></div>
+      <button id="btnWardrobe" class="btn ghost small"><i data-icon="party"></i>Garderobe: Hüte, Spuren, Tänze</button>
       <p id="lobbySettings" class="lobbyset"></p>
       <button id="btnReady" class="btn big">Bereit!</button>
       <div id="hostCtl">
@@ -122,12 +125,48 @@
       <h2 id="endTitle"></h2>
       <div id="podium"></div>
       <p id="rest" class="rest"></p>
-      <ul id="awards" class="plist awards"></ul>
       <div id="endHost">
         <button id="btnAgain" class="btn big">Revanche!</button>
         <button id="btnToLobby" class="btn ghost">Zur Lobby</button>
       </div>
       <p id="endWait" class="muted">Der Host entscheidet, wie's weitergeht …</p>
+      <button id="btnPhoto" class="btn"><i data-icon="kamera"></i>Erinnerungsfoto</button>
+      <div id="xpBox" class="xpbox"></div>
+      <ul id="awards" class="plist awards"></ul>
+    </div>
+  </section>
+
+  <!-- Profil: Stufe, Statistik und Garderobe -->
+  <section id="profile" class="screen">
+    <div class="panel wide">
+      <h2>Dein Blob</h2>
+      <div class="profhead">
+        <img id="profAvatar" class="avbig" alt="">
+        <div class="proflvl">
+          <div>Stufe <b id="profLevel">1</b></div>
+          <div class="xpbar"><i id="profXpBar"></i></div>
+          <small id="profXp"></small>
+        </div>
+      </div>
+      <ul id="profStats" class="statgrid"></ul>
+      <h3>Hüte</h3><div id="lockHats" class="locker"></div>
+      <h3>Spuren</h3><div id="lockTrails" class="locker"></div>
+      <h3>Siegestänze</h3><div id="lockDances" class="locker"></div>
+      <h3>Emotes</h3><div id="lockEmotes" class="locker"></div>
+      <p class="muted small">Gespeichert nur in diesem Browser, ohne Konto. Was du trägst, sehen alle im Spiel.</p>
+      <button id="btnProfileClose" class="btn big">Fertig</button>
+    </div>
+  </section>
+
+  <!-- Erinnerungsfoto -->
+  <section id="photo" class="screen">
+    <div class="panel wide">
+      <img id="photoImg" class="photoimg" alt="Erinnerungsfoto">
+      <div class="row">
+        <button id="btnPhotoSave" class="btn big"><i data-icon="kamera"></i>Speichern</button>
+        <button id="btnPhotoShare" class="btn"><i data-icon="link"></i>Teilen</button>
+      </div>
+      <button id="btnPhotoClose" class="btn ghost">Zurück</button>
     </div>
   </section>
 

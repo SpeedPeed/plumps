@@ -5,10 +5,13 @@ import { initInput, readInput } from './input.js';
 import { sfx, unlockAudio, toggleMute, chargeStart, chargeStop, setVolumes, setMusic, babble } from './audio.js';
 import { T } from './tuning.js';
 import { initDebug, DEBUG } from './debug.js';
-import { iconHTML, HAT_NAMES, EMOTE_IDS } from './art/icons.js';
+import { iconHTML, HAT_NAMES, HAT_IDS, EMOTE_IDS } from './art/icons.js';
 import { avatarURL, avatarHTML } from './art/avatar.js';
 import { drawMapIcon } from './art/themes.js';
 import { TEAMS } from './modes/team.js';
+import { profile, save as saveProfile, level, owns, equipped, recordMatch } from './profile.js';
+import { TRAILS, DANCES, EMOTE_NAMES, UNLOCKS, levelFor, xpForLevel, unlockName, unlockIcon, KIND_NAMES } from './cosmetics.js';
+import { makePhoto } from './photo.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -41,7 +44,7 @@ const store = {
 };
 $('name').value = store.get('plumps-name') || '';
 let myHat = +(store.get('plumps-hat') ?? 1) || 0;
-if (myHat < 0 || myHat >= HAT_COUNT) myHat = 0;
+if (myHat < 0 || myHat >= HAT_COUNT || !owns('hat', myHat)) myHat = 0;
 const settings = { music: 0.5, sfx: 0.8, shake: true, ...JSON.parse(store.get('plumps-settings') || '{}') };
 setVolumes(settings.music, settings.sfx);
 view.shakeScale = settings.shake ? 1 : 0;
@@ -100,7 +103,7 @@ $('btnHost').onclick = () => {
   net = new Host({
     onReady: (code) => {
       myId = 'host';
-      game.addPlayer(myId, name, false, myHat);
+      game.addPlayer(myId, name, false, myHat, equipped());
       $('roomCode').textContent = code;
       $('menuErr').textContent = '';
       history.replaceState(null, '', '?r=' + code);
@@ -126,7 +129,7 @@ $('btnJoin').onclick = () => {
   const name = myName();
   mode = 'client';
   net = new Client(code, {
-    onOpen: () => net.send({ t: 'join', name, hat: myHat }),
+    onOpen: () => net.send({ t: 'join', name, hat: myHat, ...equipped() }),
     onError: (msg) => menuError(kicked ? 'Der Host hat dich aus dem Raum geworfen.' : msg),
     onData: (msg) => {
       if (msg.t === 'kicked') { kicked = true; return; }
@@ -162,7 +165,7 @@ $('btnSolo').onclick = () => {
   applyLobbySettings();
   mode = 'solo';
   myId = 'me';
-  game.addPlayer(myId, myName(), false, myHat);
+  game.addPlayer(myId, myName(), false, myHat, equipped());
   for (let i = 0; i < 3; i++) addBot();
   $('roomCode').textContent = 'SOLO';
   startLoops();
@@ -178,7 +181,7 @@ function hostReceive(id, msg) {
       if (bot) game.removePlayer(bot.id);
       else { net.send(id, { t: 'full' }); setTimeout(() => net.kick(id), 500); return; }
     }
-    game.addPlayer(id, String(msg.name || 'Blob'), false, msg.hat | 0);
+    game.addPlayer(id, String(msg.name || 'Blob'), false, msg.hat | 0, { tr: msg.tr, dc: msg.dc });
     net.send(id, { t: 'welcome', id });
     toast(`<b>${esc(String(msg.name || 'Blob').slice(0, 14))}</b> ist da!`);
   } else if (msg.t === 'in') {
@@ -187,6 +190,8 @@ function hostReceive(id, msg) {
     game.choose(id, msg.i | 0);
   } else if (msg.t === 'hat') {
     game.setHat(id, msg.h | 0);
+  } else if (msg.t === 'cos') {
+    game.setCosmetics(id, msg);
   } else if (msg.t === 'emo') {
     game.emote(id, msg.i | 0);
   } else if (msg.t === 'ready') {
@@ -214,24 +219,42 @@ function setHat(h) {
   store.set('plumps-hat', myHat);
   if (mode === 'client') net.send({ t: 'hat', h: myHat });
   else if (game) game.setHat(myId, myHat);
+  updateMenuProfile();
 }
-$('hatPrev').onclick = () => setHat(myHat - 1);
-$('hatNext').onclick = () => setHat(myHat + 1);
+// Pfeile in der Lobby blättern nur durch freigeschaltete Hüte
+function stepHat(dir) {
+  let h = myHat;
+  do h = (h + dir + HAT_COUNT) % HAT_COUNT; while (!owns('hat', h) && h !== myHat);
+  setHat(h);
+}
+$('hatPrev').onclick = () => stepHat(-1);
+$('hatNext').onclick = () => stepHat(1);
+
+// Spur und Siegestanz an alle schicken
+function sendCosmetics() {
+  if (mode === 'client') net.send({ t: 'cos', ...equipped() });
+  else if (game) game.setCosmetics(myId, equipped());
+}
 
 function sendEmote(i) {
   if (!mode) return;
   if (mode === 'client') net.send({ t: 'emo', i });
   else game.emote(myId, i);
 }
-$('emotes').innerHTML = EMOTE_IDS.map((id, i) => `<button data-i="${i}" title="Emote ${i + 1}">${iconHTML(id)}${isTouch ? '' : `<small>${i + 1}</small>`}</button>`).join('');
+// Nur freigeschaltete Emotes bekommen einen Knopf
+function buildEmotes() {
+  $('emotes').innerHTML = EMOTE_IDS.map((id, i) => (owns('emote', i) ? `<button data-i="${i}" title="${EMOTE_NAMES[i]} (${i + 1})">${iconHTML(id)}${isTouch ? '' : `<small>${i + 1}</small>`}</button>` : '')).join('');
+  $('emotes').classList.toggle('many', $('emotes').children.length > 5);
+}
+buildEmotes();
 $('emotes').addEventListener('pointerdown', (e) => {
   const b = e.target.closest('button');
   if (b) { e.preventDefault(); sendEmote(+b.dataset.i); }
 });
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.repeat) return;
-  const m = /^Digit([1-5])$/.exec(e.code);
-  if (m) sendEmote(+m[1] - 1);
+  const m = /^Digit([1-8])$/.exec(e.code);
+  if (m && owns('emote', +m[1] - 1)) sendEmote(+m[1] - 1);
 });
 
 // Lobby: bereit melden, Farbe wählen, (als Host) Spieler rauswerfen
@@ -377,9 +400,9 @@ function leave() {
   snaps = []; localEvents = []; netEvents = []; snapLog = []; replay = null; kicked = false;
   document.body.classList.remove('replaying');
   setBusy(false);
-  for (const id of ['lobby', 'end']) screen(id, false);
+  for (const id of ['lobby', 'end', 'profile', 'photo']) screen(id, false);
   for (const id of ['hud', 'touch', 'pick']) $(id).classList.add('hidden');
-  document.body.classList.remove('picking');
+  document.body.classList.remove('picking', 'ended');
   screen('menu', true);
   $('menuErr').textContent = '';
   history.replaceState(null, '', location.pathname);
@@ -660,6 +683,7 @@ function updateUI(s) {
   show('touch', !inLobby && isTouch && s.ph !== 'matchEnd');
   show('pick', s.ph === 'pick');
   document.body.classList.toggle('picking', s.ph === 'pick');
+  document.body.classList.toggle('ended', s.ph === 'matchEnd');
   screen('end', s.ph === 'matchEnd');
   show('emotes', !inLobby && s.ph !== 'matchEnd');
 
@@ -794,13 +818,116 @@ function updateUI(s) {
     const order = [top[1], top[0], top[2]].filter(Boolean);
     const cls = (p) => (p === top[0] ? 'first' : p === top[1] ? 'second' : 'third');
     const medal = (p) => (p === top[0] ? 'medaille1' : p === top[1] ? 'medaille2' : 'medaille3');
-    setHTML('podium', order.map(p => `<div class="pod ${cls(p)}">${avatarHTML(p, p === top[0] ? 'triumph' : 'normal')}<span class="nm">${esc(p.n)}</span><div class="block">${iconHTML(medal(p))}${p.s}</div></div>`).join(''));
+    setHTML('podium', order.map(p => `<div class="pod ${cls(p)}">${avatarHTML(p, p === top[0] ? 'triumph' : 'normal', p === top[0] ? `av dance-${DANCES[p.dn]?.id || 'huepf'}` : 'av')}<span class="nm">${esc(p.n)}</span><div class="block">${iconHTML(medal(p))}${p.s}</div></div>`).join(''));
     setHTML('rest', sorted.slice(3).map(p => `${esc(p.n)}: ${p.s}`).join(' · '));
-    setHTML('awards', (s.aw || []).map(([icon, title, name, val]) => `<li>${iconHTML(icon)}<span><b>${title}:</b> ${esc(name)}</span><span class="val">${val}</span></li>`).join(''));
+    setHTML('awards', (s.aw || []).map(([icon, title, name, val, id]) => `<li class="${id === myId ? 'mine' : ''}">${iconHTML(icon)}<span><b>${title}:</b> ${esc(name)}</span><span class="val">${val}</span></li>`).join(''));
+    bookMatch(s, sorted);
     show('endHost', amHost);
     show('endWait', !amHost);
   }
 }
+
+// ---------- Profil: XP, Stufen, Garderobe ----------
+
+const levelFrac = (xp) => { const L = level(), a = xpForLevel(L), b = xpForLevel(L + 1); return Math.max(0, Math.min(1, (xp - a) / (b - a))); };
+const myLook = () => { const me = current?.p.find(p => p.id === myId); return { c: me?.c || COLORS[0], ci: me?.ci ?? 0, h: myHat }; };
+
+function updateMenuProfile() {
+  $('menuLevel').textContent = level();
+  $('menuXpBar').style.width = `${levelFrac(profile.xp) * 100}%`;
+  $('menuAvatar').src = avatarURL(COLORS[0], 0, myHat, 'normal');
+}
+updateMenuProfile();
+
+// Am Matchende: XP verbuchen und anzeigen (einmal pro Match)
+let xpShown = null;
+function bookMatch(s, sorted) {
+  const key = `${s.sd}-${s.rd}-${s.ch}`;
+  if (xpShown === key || !s.ps || !s.ps[myId]) return;
+  xpShown = key;
+  const place = sorted.findIndex(p => p.id === myId);
+  const awards = (s.aw || []).filter(a => a[4] === myId).length;
+  const oldFrac = levelFrac(profile.xp), oldLevel = level();
+  const res = recordMatch(key, { rounds: s.rd, stats: s.ps[myId], place, awards, champion: s.ch === myId });
+  if (!res) { $('xpBox').innerHTML = ''; return; }
+  const parts = res.xp.parts.map(([n, v]) => `${n} <b>+${v}</b>`).join(' · ');
+  const unl = res.unlocked.map(u => `<li>${iconHTML(unlockIcon(u))}<span><b>${unlockName(u)}</b> <small>${KIND_NAMES[u.kind]}</small></span></li>`).join('');
+  $('xpBox').innerHTML = `<div class="xphead"><span class="lvbadge">Stufe <b>${res.after}</b></span><b class="gain">+${res.xp.total} XP</b></div>
+    <div class="xpbar"><i style="width:${(res.after > oldLevel ? 0 : oldFrac) * 100}%"></i></div>
+    <small class="parts">${parts}</small>${unl ? `<p class="newtitle">Neu freigeschaltet – unter „Dein Blob“:</p><ul class="unlocks">${unl}</ul>` : ''}`;
+  setTimeout(() => { const i = $('xpBox').querySelector('.xpbar i'); if (i) i.style.width = `${levelFrac(profile.xp) * 100}%`; }, 400);
+  if (res.after > res.before) {
+    setTimeout(() => { sfx.levelup(); toast(`${iconHTML('party')} <b>Stufe ${res.after}!</b> ${res.unlocked.map(unlockName).join(', ')}`); }, 900);
+    buildEmotes();
+  }
+  updateMenuProfile();
+}
+
+function lockItem(kind, i, inner, name, selected) {
+  const lv = levelFor(kind, i), open = lv <= level();
+  return `<button class="lockitem ${open ? '' : 'locked'} ${selected ? 'sel' : ''}" data-kind="${kind}" data-i="${i}" ${open ? '' : 'disabled'} title="${name}">
+    ${inner}<span class="nm">${name}</span>${open ? '' : `<span class="lock">${iconHTML('schloss')}Stufe ${lv}</span>`}</button>`;
+}
+
+function renderProfile() {
+  const L = level(), look = myLook(), st = profile.stats;
+  $('profAvatar').src = avatarURL(look.c, look.ci, myHat, 'normal', 96);
+  $('profLevel').textContent = L;
+  $('profXpBar').style.width = `${levelFrac(profile.xp) * 100}%`;
+  const next = UNLOCKS.find(u => u.lv > L);
+  $('profXp').textContent = `${profile.xp - xpForLevel(L)} / ${xpForLevel(L + 1) - xpForLevel(L)} XP bis Stufe ${L + 1}` + (next ? ` · danach wartet: ${unlockName(next)}` : '');
+  $('profStats').innerHTML = [['Matches', st.matches], ['Inselkönig', st.champion], ['Podest', st.podium], ['Runden', st.rounds], ['Rundensiege', st.roundWins],
+    ['Rauswürfe', st.ko], ['Konter', st.counters], ['Rettungen', st.saves], ['Geplumpst', st.falls]].map(([n, v]) => `<li><b>${v}</b><span>${n}</span></li>`).join('');
+  $('lockHats').innerHTML = HAT_NAMES.map((n, i) => lockItem('hat', i, iconHTML(i ? HAT_IDS[i] : 'keinespur'), n, i === myHat)).join('');
+  const eq = equipped();
+  $('lockTrails').innerHTML = TRAILS.map((t, i) => lockItem('trail', i, iconHTML(t.icon), t.name, i === eq.tr)).join('');
+  $('lockDances').innerHTML = DANCES.map((d, i) => lockItem('dance', i, avatarHTML({ c: look.c, ci: look.ci, h: myHat }, 'triumph', `av dance-${d.id}`), d.name, i === eq.dc)).join('');
+  $('lockEmotes').innerHTML = EMOTE_IDS.map((id, i) => lockItem('emote', i, iconHTML(id), EMOTE_NAMES[i], false)).join('');
+}
+
+function openProfile() { unlockAudio(); renderProfile(); screen('profile', true); }
+$('btnProfile').onclick = openProfile;
+$('btnWardrobe').onclick = openProfile;
+$('btnProfileClose').onclick = () => screen('profile', false);
+$('profile').addEventListener('click', (e) => {
+  const b = e.target.closest('.lockitem');
+  if (!b || b.disabled) return;
+  const kind = b.dataset.kind, i = +b.dataset.i;
+  if (kind === 'hat') setHat(i);
+  else if (kind === 'trail') { profile.trail = i; saveProfile(); sendCosmetics(); }
+  else if (kind === 'dance') { profile.dance = i; saveProfile(); sendCosmetics(); }
+  else return;
+  sfx.item();
+  renderProfile();
+});
+
+// ---------- Erinnerungsfoto ----------
+
+let photoCanvas = null;
+$('btnPhoto').onclick = () => {
+  if (!current || current.ph !== 'matchEnd') return;
+  photoCanvas = makePhoto(current);
+  $('photoImg').src = photoCanvas.toDataURL('image/png');
+  screen('photo', true);
+};
+const photoName = () => `plumps-${new Date().toISOString().slice(0, 10)}.png`;
+$('btnPhotoSave').onclick = () => {
+  if (!photoCanvas) return;
+  const a = document.createElement('a');
+  a.href = photoCanvas.toDataURL('image/png'); a.download = photoName();
+  document.body.appendChild(a); a.click(); a.remove();
+};
+$('btnPhotoShare').onclick = () => {
+  if (!photoCanvas) return;
+  photoCanvas.toBlob(async (blob) => {
+    const file = new File([blob], photoName(), { type: 'image/png' });
+    try {
+      if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'PLUMPS!' });
+      else $('btnPhotoSave').click();
+    } catch { /* abgebrochen */ }
+  }, 'image/png');
+};
+$('btnPhotoClose').onclick = () => screen('photo', false);
 
 initInput($('joy'), $('knob'), $('dashBtn'), $('braceBtn'));
 const debug = initDebug({ getGame: () => game, getRole: () => mode, getPings: () => pings, view });
