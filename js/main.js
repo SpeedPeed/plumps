@@ -493,6 +493,11 @@ function watchEmotes(s) {
 
 // ---------- Ereignisse → Sound/Effekte/Toasts ----------
 
+// Vorteil/Nachteil einer Chaos-Karte: Geschenk = für den Wählenden, Krone = gegen den Führenden
+function perkHTML(c) {
+  return c.perk ? `<em class="perk ${c.perkFor}">${iconHTML(c.perkFor === 'leader' ? 'krone' : 'geschenk')}${c.perk}</em>` : '';
+}
+
 // Symbol pro Insel-Mechanik (für die Erklärung beim ersten Mal)
 const MAP_ICON = { rund: 'kokos', quadrat: 'kiste', kreuz: 'drehen', bruecke: 'ausrufe', archipel: 'welle', ring: 'lava', karussell: 'drehen', stern: 'welle', knolle: 'maulwurf', wippe: 'welle' };
 
@@ -717,7 +722,7 @@ function updateUI(s) {
     if (me.st === 'ghost') hint = `${iconHTML('pups')} Du bist ein Geist! ${isTouch ? 'PUPS-Knopf' : 'Leertaste'} = Pups-Welle`;
     else if (me.st === 'falling' && md.respawn && (s.mo !== 'leben' || me.lv > 0)) hint = 'Plumps! Gleich geht\'s weiter …';
     else if (performance.now() < modeHintUntil) hint = `${iconHTML(s.mo)} ${md.desc}`;
-    else if (card && s.c === 'spiegel' && s.co && performance.now() < modeHintUntil + 3000) hint = `${iconHTML('spiegel')} Steuerung vertauscht – außer für ${nameOf(s, s.co)}`;
+    else if (card?.perk && performance.now() < modeHintUntil + 3500) hint = `${iconHTML(s.c)} <b>${card.name}${s.co ? ` von ${nameOf(s, s.co)}` : ''}:</b> ${card.perk}`;
     else if (s.rd === 1 && !isTouch) hint = 'WASD bewegen · Leertaste tippen/halten = Dash · Shift = Stemmen';
   }
   if (s.ph === 'pick') hint = 'Schwabbel schon mal herum – gleich geht\'s los!';
@@ -758,7 +763,7 @@ function updateUI(s) {
         const c = CARDS[id];
         const el = document.createElement('div');
         el.className = 'card' + (iPick ? ' mine' : '');
-        el.innerHTML = `${iconHTML(id, 'corner tl')}${iconHTML(id, 'corner br')}<div class="art">${iconHTML(id)}</div><div class="txt"><b>${c.name}</b><span>${c.desc}</span></div>`;
+        el.innerHTML = `${iconHTML(id, 'corner tl')}${iconHTML(id, 'corner br')}<div class="art">${iconHTML(id)}</div><div class="txt"><b>${c.name}</b><span>${c.desc}</span></div>${perkHTML(c)}`;
         if (iPick) el.onclick = () => { if (mode === 'client') net.send({ t: 'pick', i }); else game.choose(myId, i); };
         $('pickCards').appendChild(el);
       });

@@ -141,10 +141,15 @@ export class Game {
     }
     if (p.edgeAge > 0) pm.fric *= T.EDGE_FRIC;
     this.M.playerMods?.(this, p, pm);
+    this.C.playerMods?.(this, p, pm);
     for (const k in p.pw) if (p.pw[k] > 0) EFFECTS[k]?.mods?.(this, p, pm);
     if (p.dazeT > 0) pm.acc = 0;
     return pm;
   }
+
+  // Für Karten: Wer hat sie gewählt, wer führt (Krone zu Rundenbeginn)?
+  isPicker(p) { return !!this.cardOwner && p.id === this.cardOwner; }
+  isLeader(p) { return this.crowned.has(p.id); }
 
   sizeFor(p) { return T.BLOB_R * this.playerMods(p).size; }
 
@@ -312,6 +317,7 @@ export class Game {
     this.M.setup?.(this);
     this.layoutPlayers();
     this.M.afterLayout?.(this);
+    this.C.afterLayout?.(this);
     this.phase = 'countdown';
     this.timer = T.COUNTDOWN;
     this.message = '';
@@ -861,7 +867,7 @@ export class Game {
     for (const it of this.items) {
       it.t -= dt;
       for (const p of alive) {
-        if (it.t > 0 && Math.hypot(p.x - it.x, p.y - it.y) < p.r + T.ITEM_PICK_R) {
+        if (it.t > 0 && Math.hypot(p.x - it.x, p.y - it.y) < p.r + T.ITEM_PICK_R && this.C.canPick?.(this, p) !== false) {
           p.stats.items++;
           this.emit({ k: 'item', id: p.id, type: it.type });
           ITEMS[it.type].apply(this, p, alive);

@@ -10,6 +10,7 @@ function pass(g, id) {
 
 export default {
   id: 'kartoffel', name: 'Heiße Kartoffel', desc: 'Wer sie hält, wenn sie explodiert, fliegt raus. Weitergeben durch Rempeln!',
+  perk: 'Die Krone hat sie zuerst – und bei ihr tickt sie doppelt so schnell.', perkFor: 'leader',
   fits: (mode) => mode !== 'fangen',
   setup(g) { g.cs.potato = null; g.cs.immune = 0; },
 
@@ -27,12 +28,15 @@ export default {
     if (!h || h.state !== 'alive') {
       g.cs.potato = null;
       if (alive.length >= 2) {
-        pass(g, g.rng.pick(alive).id);
+        // Die erste Kartoffel bekommt der Führende
+        const leader = !g.cs.started && alive.find(p => g.isLeader(p));
+        g.cs.started = true;
+        pass(g, (leader || g.rng.pick(alive)).id);
         g.cs.potatoT = g.rng.range(T.KARTOFFEL_MIN, T.KARTOFFEL_MAX);
       }
       return;
     }
-    g.cs.potatoT -= dt;
+    g.cs.potatoT -= dt * (g.isLeader(h) ? T.KARTOFFEL_LEADER : 1);
     if (g.cs.potatoT <= 0) {
       g.cs.potato = null;
       g.blast(h.x, h.y, T.KARTOFFEL_R, T.KARTOFFEL_F, h);

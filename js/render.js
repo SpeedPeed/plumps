@@ -235,7 +235,7 @@ export class View {
       ctx.fillStyle = 'rgba(8,6,20,0.96)';
       ctx.beginPath();
       ctx.rect(-5000, -5000, 10000, 10000);
-      ctx.arc(me.x, me.y, 105, 0, TAU, true);
+      ctx.arc(me.x, me.y, s.co === myId ? 210 : 105, 0, TAU, true);  // wer gewählt hat, hat eine Taschenlampe
       ctx.fill();
       ctx.restore();
       for (const p of players) if (p.st === 'alive' && p.id !== myId) drawFace(ctx, p.x, p.y, p.r, p.fx || 0, p.fy || 1, 'glow', now);

@@ -199,6 +199,37 @@ BOT_LEVELS.forEach((L, i) => {
 const strong = expected[2] ? wins[2] / expected[2] : 0, weak = expected[0] ? wins[0] / expected[0] : 0;
 if (rounds && strong <= weak) errors.push(`Schwere Bots (${strong.toFixed(2)}) gewinnen nicht öfter als leichte (${weak.toFixed(2)})`);
 
+// ---------- 2b) Wirkung der Chaos-Karten ----------
+// Vier gleich starke Bots, Bot 0 hat gewählt, Bot 1 führt. Wie oft gewinnen die beiden
+// im Vergleich zu ohne Karte? (Erwartet ohne Wirkung: je 25 %)
+const CARD_ROUNDS = QUICK ? 16 : 50;
+function cardTrial(card, n) {
+  let picker = 0, leader = 0, done = 0;
+  for (let i = 0; i < n; i++) {
+    const map = card && CARDS[card].fits && !CARDS[card].fits('klassik', MAPS.rund) ? 'quadrat' : 'rund';
+    const g = new Game({ seed: deriveSeed(SEED ^ 0xCA4D, i) });
+    for (let j = 0; j < 4; j++) { const p = g.addPlayer('b' + j, 'Bot' + j, true); p.botLevel = 1; }
+    g.startMatch();
+    g.players.get('b1').score = 2;               // b1 führt (bekommt die Krone)
+    g.mode = 'klassik'; g.map = map; g.card = card; g.cardOwner = card ? 'b0' : null; g.round = 1;
+    g.beginCountdown();
+    let steps = 0;
+    while (g.phase !== 'roundEnd' && steps++ < 60 * 200) { g.step(DT); g.drainEvents(); }
+    if (g.phase !== 'roundEnd') continue;
+    done++;
+    if (g.roundWinner === 'b0') picker++;
+    if (g.roundWinner === 'b1') leader++;
+  }
+  return { picker: picker / (done || 1), leader: leader / (done || 1) };
+}
+const base = cardTrial(null, CARD_ROUNDS * 2);
+console.log(`\nChaos-Karten (je ${CARD_ROUNDS} Runden, 4 gleich starke Bots): Siegquote von Wählendem / Krone`);
+console.log(`${'ohne Karte'.padEnd(16)} ${(base.picker * 100).toFixed(0).padStart(4)} % / ${(base.leader * 100).toFixed(0).padStart(3)} %`);
+for (const c of CARD_IDS) {
+  const r = cardTrial(c, CARD_ROUNDS);
+  console.log(`${CARDS[c].name.padEnd(16)} ${(r.picker * 100).toFixed(0).padStart(4)} % / ${(r.leader * 100).toFixed(0).padStart(3)} %   ${CARDS[c].perkFor === 'leader' ? 'gegen die Krone' : 'für den Wählenden'}`);
+}
+
 // ---------- 3) Treffer-Zuordnung ----------
 
 function duel(setup) {

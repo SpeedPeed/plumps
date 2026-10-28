@@ -1,5 +1,6 @@
 export default {
-  id: 'spiegel', name: 'Spiegelwelt', desc: 'Steuerung vertauscht – außer für den, der die Karte gezogen hat.',
+  id: 'spiegel', name: 'Spiegelwelt', desc: 'Die Steuerung ist vertauscht.',
+  perk: 'Wer wählt, steuert ganz normal.', perkFor: 'picker',
   input: (g, p, inp) => (p.id === g.cardOwner ? inp : { mx: -inp.mx, my: -inp.my }),
   // Bots fallen (meistens) nicht auf die Spiegelwelt rein
   botAdjust(g, p, ctx) {

@@ -164,36 +164,44 @@ export const T = {
 
   // --- Chaos-Karten ---
   EIS_FRIC: 0.45,
-  RIESEN_SIZE: 1.7,
-  RIESEN_ACC: 0.85,
-  MINI_SIZE: 0.6,
-  MINI_ACC: 1.25,
+  EIS_PICKER_FRIC: 1.3,    // Spikes des Wählenden
+  RIESE_SIZE: 1.3,        // Riese & Zwerg: der Wählende …
+  RIESE_ACC: 0.9,
+  ZWERG_SIZE: 0.82,        // … und der Führende
+  ZWERG_ACC: 1.1,
   FLUMMI_RESTITUTION: 2.3,
-  TURBO_DASH_CD: 0.35,
+  FLIPPER_MASS: 1.5,
+  TURBO_DASH_CD: 0.35,    // Zeitlupe: Dash-Abklingzeit des Wählenden …
+  ZEITLUPE_PICKER_ACC: 1.35, // … und schnellere Beine
+  BOMBEN_LEADER: 0.45,    // Anteil der Bomben, die auf den Führenden zielen
   BOMBEN_EVERY_MIN: 0.7,
   BOMBEN_EVERY_MAX: 1.4,
   BOMBEN_FUSE: 1.3,
   DONUT_R: 85,
-  WIND_F: 330,
+  WIND_F: 380,
   WIND_TURN: 0.6,
   MAGNET_F: 0.5,
+  MAGNET_LEADER: 1,
   KARTOFFEL_MIN: 9,
   KARTOFFEL_MAX: 13,
   KARTOFFEL_R: 110,
   KARTOFFEL_F: 500,
+  KARTOFFEL_LEADER: 2,    // so viel schneller tickt sie bei der Krone
   SCHRUMPF_START: 2,
   SCHRUMPF_RATE: 0.055,
+  SCHRUMPF_ANCHOR: 12,
   BUMPER_R: 26,
   BUMPER_F: 420,
   TAUSCH_EVERY: 6,
   GEISTER_PUPS_CD: 1.3,
   GEISTER_PUPS_R: 1.35,
+  GEISTER_LEADER: 2,
   GESCHENK_MIN: 0.6,
   GESCHENK_MAX: 1.2,
   GESCHENK_MAX_ITEMS: 6,
   BANANEN_START: 10,
+  BANANEN_LEADER_EVERY: 2.5,
   ZEITLUPE: 0.55,
-  WACKEL: 0.6,
 
   // --- Modi ---
   KLASSIK_SHRINK: 20,
