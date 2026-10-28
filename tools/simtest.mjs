@@ -230,6 +230,26 @@ for (const c of CARD_IDS) {
   console.log(`${CARDS[c].name.padEnd(16)} ${(r.picker * 100).toFixed(0).padStart(4)} % / ${(r.leader * 100).toFixed(0).padStart(3)} %   ${CARDS[c].perkFor === 'leader' ? 'gegen die Krone' : 'für den Wählenden'}`);
 }
 
+// ---------- 2c) Boss-Blob: Wie oft hält der Boss durch? (Ziel: etwa 35–50 %) ----------
+console.log('\nBoss-Blob (gleich starke Bots, Mittel): Siegquote des Bosses');
+for (const n of [3, 4, 6]) {
+  let won = 0, done = 0, time = 0;
+  const R = QUICK ? 16 : 40;
+  for (let i = 0; i < R; i++) {
+    const g = new Game({ seed: deriveSeed(SEED ^ 0xB055, i * 7 + n) });
+    for (let j = 0; j < n; j++) { const p = g.addPlayer('b' + j, 'Bot' + j, true); p.botLevel = 1; }
+    g.startMatch();
+    g.mode = 'boss'; g.map = MAP_IDS[i % MAP_IDS.length]; g.card = null; g.round = 1;
+    g.beginCountdown();
+    let steps = 0;
+    while (g.phase !== 'roundEnd' && steps++ < 60 * 200) { g.step(DT); g.drainEvents(); }
+    if (g.phase !== 'roundEnd') continue;
+    done++; time += g.t;
+    if (g.roundWinner === g.ms.boss) won++;
+  }
+  console.log(`  ${n} Spieler: ${(100 * won / (done || 1)).toFixed(0).padStart(3)} %   (Ø ${(time / (done || 1)).toFixed(1)} s)`);
+}
+
 // ---------- 3) Treffer-Zuordnung ----------
 
 function duel(setup) {

@@ -8,6 +8,7 @@ import { initDebug, DEBUG } from './debug.js';
 import { iconHTML, HAT_NAMES, EMOTE_IDS } from './art/icons.js';
 import { avatarURL, avatarHTML } from './art/avatar.js';
 import { drawMapIcon } from './art/themes.js';
+import { TEAMS } from './modes/team.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -493,6 +494,13 @@ function watchEmotes(s) {
 
 // ---------- Ereignisse → Sound/Effekte/Toasts ----------
 
+// Team-Modus: in welchem Team bin ich?
+function teamLine(s) {
+  const t = s.te && s.te[myId];
+  if (t == null) return s.bo === myId ? ' <b>Du bist der Boss!</b>' : '';
+  return ` <b style="color:${TEAMS[t].color}">Du bist Team ${TEAMS[t].name}.</b>`;
+}
+
 // Vorteil/Nachteil einer Chaos-Karte: Geschenk = für den Wählenden, Krone = gegen den Führenden
 function perkHTML(c) {
   return c.perk ? `<em class="perk ${c.perkFor}">${iconHTML(c.perkFor === 'leader' ? 'krone' : 'geschenk')}${c.perk}</em>` : '';
@@ -540,6 +548,7 @@ function handleEvent(e, s) {
     case 'sink': sfx.sink(); break;
     case 'rise': sfx.rise(); break;
     case 'splash': sfx.splash(); break;
+    case 'points': if (mine) (e.n > 0 ? sfx.coin : sfx.draw)(); break;
     case 'pups': sfx.pups(); break;
     case 'bumper': sfx.bumper(); break;
     case 'swap': sfx.swap(); toast(`${iconHTML('tausch')} Platztausch!`); break;
@@ -721,7 +730,7 @@ function updateUI(s) {
   if (s.ph === 'play' && me) {
     if (me.st === 'ghost') hint = `${iconHTML('pups')} Du bist ein Geist! ${isTouch ? 'PUPS-Knopf' : 'Leertaste'} = Pups-Welle`;
     else if (me.st === 'falling' && md.respawn && (s.mo !== 'leben' || me.lv > 0)) hint = 'Plumps! Gleich geht\'s weiter …';
-    else if (performance.now() < modeHintUntil) hint = `${iconHTML(s.mo)} ${md.desc}`;
+    else if (performance.now() < modeHintUntil) hint = `${iconHTML(s.mo)} ${md.desc}${teamLine(s)}`;
     else if (card?.perk && performance.now() < modeHintUntil + 3500) hint = `${iconHTML(s.c)} <b>${card.name}${s.co ? ` von ${nameOf(s, s.co)}` : ''}:</b> ${card.perk}`;
     else if (s.rd === 1 && !isTouch) hint = 'WASD bewegen · Leertaste tippen/halten = Dash · Shift = Stemmen';
   }
@@ -770,7 +779,8 @@ function updateUI(s) {
     }
     const total = s.op ? T.CARD_PICK : T.FINALE_INTRO;
     $('pickBar').firstElementChild.style.width = `${Math.max(0, Math.min(1, s.tm / total)) * 100}%`;
-    setHTML('standings', sorted.map(p => `<li class="${p.id === s.rw ? 'won' : ''} ${p.s >= s.tg - 1 ? 'mb' : ''}">${avatarHTML(p, p.id === s.rw ? 'triumph' : 'normal')}${p.s}</li>`).join(''));
+    const won = (p) => p.id === s.rw || (s.rws || []).includes(p.id);
+    setHTML('standings', sorted.map(p => `<li class="${won(p) ? 'won' : ''} ${p.s >= s.tg - 1 ? 'mb' : ''}">${avatarHTML(p, won(p) ? 'triumph' : 'normal')}${p.s}</li>`).join(''));
   } else cache.pickKey = null;
 
   // Siegerehrung mit Podest

@@ -132,7 +132,7 @@ export class Game {
     const gm = this.gm;
     const pm = {
       acc: T.ACC * gm.accMul, fric: gm.fric, dashCd: gm.dashCd, dashMul: 1, punch: false,
-      size: gm.sizeMul, mass: 1, takeDash: 1, takePups: 1, takeBlast: 1,
+      size: gm.sizeMul, mass: 1, takeDash: 1, takePups: 1, takeBlast: 1, edge: 1,
     };
     if (p.charging) pm.acc *= T.CHARGE_ACC;
     if (p.braceT > 0) {
@@ -268,6 +268,7 @@ export class Game {
     this.lastCard = null;
     this.champion = null;
     this.finale = false;
+    this.bossCount = new Map();
     this.mode = 'klassik';
     this.map = 'rund';
     this.beginCountdown();
@@ -291,7 +292,7 @@ export class Game {
     const r = this.matchRng;
     if (!this.modeMix) this.mode = 'klassik';
     // Nie zweimal hintereinander derselbe Modus
-    else this.mode = r.pick(MODE_POOL.filter(m => m !== this.mode));
+    else this.mode = r.pick(MODE_POOL.filter(m => m !== this.mode && (MODES[m].fits?.(this) ?? true)));
     const maps = MAP_IDS.filter(m => m !== this.map && !(this.M.still && MAPS[m].moving));
     this.map = r.pick(maps);
   }
@@ -380,11 +381,13 @@ export class Game {
     p.score = Math.max(p.score, Math.min(p.score + 1, cap));
   }
 
-  endRound(winner) {
+  // mates: alle, die mitgewonnen haben (Team-Modus)
+  endRound(winner, mates = null, label = null) {
+    this.roundWinners = winner ? (mates || [winner]).map(p => p.id) : [];
     if (winner) {
-      this.addPoint(winner, this.finale && winner.score >= this.target - 1);
-      this.message = `${winner.name} gewinnt die Runde!`;
-      this.emit({ k: 'win', id: winner.id });
+      for (const p of mates || [winner]) this.addPoint(p, this.finale && p.score >= this.target - 1);
+      this.message = label || `${winner.name} gewinnt die Runde!`;
+      this.emit({ k: 'win', id: winner.id, ids: this.roundWinners });
     } else {
       this.message = 'Unentschieden!';
       this.emit({ k: 'draw' });
@@ -509,6 +512,7 @@ export class Game {
   // Treffer nur dem Angreifer gutschreiben – nie dem, der gerammt wird
   credit(victim, attackerId) {
     if (!attackerId || attackerId === victim.id) return;
+    if (this.M.sameTeam?.(this, victim.id, attackerId)) return;
     victim.lastHitBy = attackerId;
     victim.lastHitT = this.t;
   }
@@ -623,7 +627,7 @@ export class Game {
     if (grace <= 0 || T.EDGE_TIME <= 0 || !onGround(this.shapes, this.holes, p.x, p.y, -grace)) { this.fall(p, 'fall'); return; }
     if (p.edgeAge === 0 && this.t - p.wobbleAt > 0.6) { p.wobbleAt = this.t; this.emit({ k: 'wobble', id: p.id, x: p.x, y: p.y }); }
     p.edgeAge += dt;
-    if (p.edgeAge >= T.EDGE_TIME) this.fall(p, 'fall');
+    if (p.edgeAge >= T.EDGE_TIME * this.playerMods(p).edge) this.fall(p, 'fall');
   }
 
   movePlayer(p, dt, alive) {
@@ -705,7 +709,7 @@ export class Game {
         Y.braceT = 0; Y.dazeT = T.BREAK_DAZE; Y.charging = false;
         const f = base * T.BREAK_MUL * this.playerMods(Y).takeDash;
         Y.vx += nx * f; Y.vy += ny * f;
-        if (!this.free) X.stats.breaks++;
+        if (!this.free) { X.stats.breaks++; this.M.onBreak?.(this, X, Y); }
         this.emit({ k: 'break', id: X.id, victim: Y.id, x: mx, y: my });
         this.hitstop = Math.max(this.hitstop, T.HITSTOP_MAX);
         return 'break';
@@ -718,7 +722,7 @@ export class Game {
         Y.vx *= 0.2; Y.vy *= 0.2;
         Y.braceCd = Math.min(Y.braceCd, T.BRACE_CD_COUNTER);
         this.credit(X, Y.id);
-        if (!this.free) Y.stats.counters++;
+        if (!this.free) { Y.stats.counters++; this.M.onCounter?.(this, Y, X); }
         this.emit({ k: 'counter', id: Y.id, by: X.id, x: mx, y: my });
         this.hitstop = Math.max(this.hitstop, T.HITSTOP_MAX);
         return 'counter';
@@ -738,7 +742,7 @@ export class Game {
 
   checkEnd(all, dt) {
     const res = this.M.checkEnd?.(this, all, dt);
-    if (res) { this.endRound(res.winner || null); return; }
+    if (res) { this.endRound(res.winner || null, res.mates, res.label); return; }
     const time = this.M.time?.();
     if (!time) return;
     if (all.length < 2) { this.endRound(all[0] || null); return; }
@@ -841,7 +845,7 @@ export class Game {
       const R = gm.pupsR;
       this.emit({ k: 'pups', x: p.gx, y: p.gy, r: R, id: p.id });
       for (const q of this.players.values()) {
-        if (q.state !== 'alive') continue;
+        if (q.state !== 'alive' || this.M.sameTeam?.(this, q.id, p.id)) continue;
         const dx = q.x - p.gx, dy = q.y - p.gy, dd = Math.hypot(dx, dy) || 1;
         if (dd >= R) continue;
         const f = T.PUPS_F * (1 - dd / (R + 10)) * this.playerMods(q).takePups;
@@ -956,7 +960,7 @@ export class Game {
       tk: this.tick, fi: this.finale ? 1 : 0, rp: this.phase === 'roundEnd' ? this.replay : null,
       set: { tg: this.target, bl: this.botLevel, mm: this.modeMix ? 1 : 0 },
       po: null, pt: 0, ig: null, zn: null, cn: [],
-      cr: [...this.crowned], ch: this.champion, rw: this.roundWinner,
+      cr: [...this.crowned], ch: this.champion, rw: this.roundWinner, rws: this.roundWinners || [],
       bm: this.bombs.map(b => [r1(b.x), r1(b.y), r1(b.t / b.max)]),
       bu: this.bumpers.map(b => [r1(b.x), r1(b.y), b.r]),
       it: this.items.map(i => [r1(i.x), r1(i.y), i.type, i.t < 3 ? 1 : 0]),

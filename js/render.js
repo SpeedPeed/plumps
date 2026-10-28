@@ -2,6 +2,7 @@
 // Alles hier ist eigene Vektorgrafik – keine Emojis.
 import { unpackShapes } from './geometry.js';
 import { COLORS } from './sim.js';
+import { TEAMS } from './modes/team.js';
 import { INK, drawIcon, drawHat, EMOTE_IDS } from './art/icons.js';
 import { THEMES, DEFAULT_WATER, materialFor, hash } from './art/themes.js';
 import { drawBody, drawFace, drawNameTag, hexA } from './art/blob.js';
@@ -84,6 +85,11 @@ export class View {
         burst(e.x, e.y, 16, 160, '#EAF7FF', 6, 0.7, { grav: 300 });
         this.shake = Math.max(this.shake, e.k === 'sink' ? 8 : 3);
         break;
+      case 'points': {
+        const p = snap?.p.find(q => q.id === e.id);
+        if (p) this.fx.push({ type: 'text', x: p.x, y: p.y - p.r - 16, vx: 0, vy: -60, life: 1, max: 1, text: e.n > 0 ? `+${e.n}` : `${e.n}`, color: e.n > 0 ? '#5ED6A0' : '#FF6B6B', size: 24 });
+        break;
+      }
       case 'boom':
         this.fx.push({ type: 'ring', x: e.x, y: e.y, r: 10, vr: 380, life: 0.35, max: 0.35, color: '#FFB347', w: 12 });
         this.fx.push({ type: 'flash', x: e.x, y: e.y, r: 90, life: 0.18, max: 0.18, color: '#FFF3C4' });
@@ -670,7 +676,6 @@ export class View {
   }
 
   drawBlobShadow(p) {
-    if (p.iv) return;
     const { ctx } = this;
     const k = p.st === 'falling' ? Math.max(0, 1 - p.f * 2) : 1;
     if (k <= 0) return;
@@ -692,9 +697,11 @@ export class View {
     const me = p.id === myId;
     let scale = 1, alpha = 1, sink = 0;
     if (p.st === 'falling') { scale = Math.max(0.05, 1 - p.f * 0.8); alpha = Math.max(0, 1 - p.f); sink = p.f * DEPTH * 1.4; }
-    // Tarnkappe: für andere ein schwaches Flimmern, für dich halb durchsichtig
-    if (p.iv && p.st === 'alive') alpha = me ? 0.45 : 0.06 + Math.max(0, Math.sin(now * 13 + p.x)) * 0.06;
-    const hidden = p.iv && !me;
+    // Tarnkappe: für andere ein Flimmern mit gestricheltem Umriss (auch auf dem Handy noch
+    // zu verfolgen, nur ohne Namen), beim Dash kurz voll sichtbar; für dich halb durchsichtig
+    const cloaked = p.iv && p.st === 'alive' && !p.dt;
+    if (cloaked) alpha = me ? 0.6 : 0.16 + Math.max(0, Math.sin(now * 13 + p.x)) * 0.1;
+    const hidden = cloaked && !me;
     const sp = Math.hypot(p.vx, p.vy);
     const stretch = Math.min(0.28, sp / 2000);
     const ang = Math.atan2(p.vy, p.vx);
@@ -707,6 +714,30 @@ export class View {
     const x = p.x + jitter, y = p.y + sink;
     const mood = this.moodOf(p, s);
     const slimy = s.ig === p.id && p.st === 'alive';
+
+    const team = s.te && s.te[p.id] != null ? TEAMS[s.te[p.id]] : null;
+    const boss = s.bo === p.id;
+    if (p.st === 'alive') {
+      if (team) {
+        // Team-Ring am Boden
+        ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r * 0.55, p.r * 1.12, p.r * 0.5, 0, 0, TAU);
+        ctx.lineWidth = 10; ctx.strokeStyle = INK; ctx.stroke();
+        ctx.lineWidth = 6; ctx.strokeStyle = team.color; ctx.stroke();
+      }
+      if (boss) {
+        const R = p.r * (1.35 + Math.sin(now * 5) * 0.06);
+        const g = ctx.createRadialGradient(p.x, p.y, p.r * 0.8, p.x, p.y, R);
+        g.addColorStop(0, 'rgba(160,60,200,0.5)'); g.addColorStop(1, 'rgba(160,60,200,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.fill();
+      }
+      if (cloaked) {
+        ctx.save();
+        ctx.setLineDash([8, 9]); ctx.lineDashOffset = -now * 40;
+        ctx.lineWidth = 3; ctx.strokeStyle = me ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 3, 0, TAU); ctx.stroke();
+        ctx.restore();
+      }
+    }
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -736,6 +767,7 @@ export class View {
       ctx.rotate(-ang);
     }
     if (!hidden) drawBody(ctx, r, p.c, p.ci, this.low);
+    else { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = 'rgba(225,242,255,0.9)'; ctx.fill(); }  // gläserner Blob
     if (slimy && !hidden) {
       ctx.fillStyle = 'rgba(123,224,60,0.75)';
       ctx.beginPath(); ctx.arc(0, -r * 0.15, r * 0.98, Math.PI, 0);
@@ -765,6 +797,12 @@ export class View {
 
     if (p.st === 'alive') {
       let top = y - r;
+      if (boss) for (const sd of [-1, 1]) {
+        // Boss-Hörner
+        ctx.beginPath(); ctx.moveTo(x + sd * r * 0.3, top + r * 0.3); ctx.quadraticCurveTo(x + sd * r * 0.75, top - r * 0.1, x + sd * r * 0.85, top - r * 0.55);
+        ctx.quadraticCurveTo(x + sd * r * 0.55, top + r * 0.05, x + sd * r * 0.62, top + r * 0.42); ctx.closePath();
+        ctx.fillStyle = '#FFF6E5'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.stroke();
+      }
       if (p.h) { drawHat(ctx, p.h, x, top + r * 0.12, r * 1.25); top -= r * 0.9; }
       if (s.cr.includes(p.id)) { drawIcon(ctx, 'krone', x, top - 6, 26); top -= 20; }
       if (slimy) { drawIcon(ctx, 'glibber', x, top - 10, 22); top -= 22; }
@@ -776,7 +814,7 @@ export class View {
         ctx.fillStyle = s.pt < 3 ? '#FF6B6B' : '#fff'; ctx.fillText(Math.ceil(s.pt), x + 22, top - 26);
         top -= 30;
       }
-      drawNameTag(ctx, x, top - 4, p.n, p.c);
+      drawNameTag(ctx, x, top - 4, boss ? `BOSS ${p.n}` : p.n, team ? team.color : boss ? '#7A3FA0' : p.c);
       top -= 24;
       if (s.mo === 'leben' && p.lv > 0) for (let i = 0; i < p.lv; i++) drawIcon(ctx, 'herz', x + (i - (p.lv - 1) / 2) * 13, y + r + 12, 13);
       // aktive Power-ups kreisen um den Blob

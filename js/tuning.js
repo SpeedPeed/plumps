@@ -219,6 +219,17 @@ export const T = {
   FANGEN_TIME: 45,
   FANGEN_ACC: 1.12,
   FANGEN_IMMUNE: 0.9,
+  BOSS_TIME: 35,
+  BOSS_SIZE: 1.7,
+  BOSS_ACC: 0.95,
+  BOSS_DASH: 1.4,
+  BOSS_MASS: 1.6,
+  BOSS_EDGE: 2.2,         // längeres Rettungsfenster an der Kante
+  BOSS_TAKE: 0.42,        // Anteil Knockback, der beim Boss ankommt …
+  BOSS_TAKE_PER: 0.82,    // … mal diesen Faktor für jeden Gegner über 2
+  KONTER_TIME: 40,
+  KONTER_DASH: 1.25,
+  KONTER_BOT_BRACE: 2.2,
 };
 
 // Bot-Stärken: Reaktionszeit, Zielfehler, Dash-Lust, Reichweite, Vorsicht am Rand,

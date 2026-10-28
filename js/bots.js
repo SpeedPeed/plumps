@@ -105,7 +105,7 @@ function reactToDashes(g, p, alive, L) {
     const tti = Math.max(0, d - p.r - q.r) / approach;
     if (tti > L.braceAt) continue;
     b.seenDash[q.id] = key;               // pro Dash nur einmal entscheiden
-    if (g.rng.next() < L.brace) { brace(p); return; }
+    if (g.rng.next() < L.brace * (g.free ? 1 : g.M.botBrace || 1)) { brace(p); return; }
   }
 }
 
