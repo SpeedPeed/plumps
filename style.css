@@ -121,3 +121,16 @@ button.mini { padding: 6px 12px; font-size: 16px; }
 #emotes button { background: rgba(0,0,0,0.35); box-shadow: none; padding: 6px 8px; font-size: 20px; line-height: 1; border-radius: 12px; }
 #emotes small { font-size: 9px; color: var(--muted); display: block; }
 .picksub { color: var(--muted); font-weight: 800; text-align: center; margin: -8px 0 0; }
+
+/* Debug-Ansicht (?debug) */
+#debug { position: fixed; left: 10px; bottom: 10px; z-index: 50; width: min(360px, calc(100vw - 20px)); max-height: 60vh; overflow: auto; background: rgba(0,0,0,0.78); color: #d8f3ff; border-radius: 10px; font: 11px/1.35 ui-monospace, Menlo, Consolas, monospace; padding: 6px 8px; pointer-events: auto; }
+#debug .dbg-head { display: flex; gap: 8px; align-items: center; }
+#debug .dbg-head span { margin-left: auto; color: #8fe388; }
+#debug button { font: inherit; padding: 3px 8px; border-radius: 6px; box-shadow: none; background: #2b4c6e; color: #fff; }
+#debug pre { margin: 6px 0; white-space: pre-wrap; }
+#debug .dbg-slider { display: grid; grid-template-columns: 120px 1fr 44px; gap: 6px; align-items: center; }
+#debug .dbg-slider input { padding: 0; }
+#debug .dbg-slider output.changed { color: #ffd23f; font-weight: 700; }
+#dbgSliders.off { opacity: .4; pointer-events: none; }
+#debug .dbg-row { display: flex; gap: 6px; margin: 6px 0; }
+#debug .dbg-check { display: flex; gap: 6px; align-items: center; }

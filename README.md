@@ -55,15 +55,25 @@ Der Host sollte den Tab offen lassen – sein Browser ist der Server.
 - Alle Grafiken und Sounds werden im Code erzeugt – keine Bild- oder Audiodateien.
 
 ```
-index.html      Bildschirme (Menü, Lobby, HUD, Kartenwahl, Siegerehrung)
+index.html         Bildschirme (Menü, Lobby, HUD, Kartenwahl, Siegerehrung)
 style.css
-js/sim.js       Spiellogik, Modi, Karten, Power-ups, Bots (läuft nur beim Host)
-js/maps.js      Inselformen (Kreise/Rechtecke, drehend/fahrend)
-js/net.js       Host/Client über PeerJS
-js/render.js    Canvas-Grafik
-js/input.js     Tastatur, Touch-Joystick, Gamepad
-js/audio.js     Synthetisierte Soundeffekte
-js/main.js      Alles zusammenstecken
+js/main.js         Alles zusammenstecken: Menü, Lobby, Netzwerk-Schleifen, HUD
+js/sim.js          Spiel-Kern: Spieler, Physik, Ablauf, Snapshot (läuft nur beim Host)
+js/tuning.js       ALLE Spielzahlen an einem Ort (Tempo, Dash, Zeiten, Karten …)
+js/rng.js          Zufall mit Startwert – gleiche Eingaben ergeben das gleiche Spiel
+js/modes/*.js      Spielmodi (je eine Datei, über Hooks angebunden)
+js/cards/*.js      Chaos-Karten
+js/items/*.js      Power-ups und ihre Effekte
+js/maps/*.js       Inseln
+js/geometry.js     Inselformen: Kreise/Rechtecke, drehend/fahrend
+js/bots.js         Bot-Verhalten
+js/net.js          Host/Client über PeerJS
+js/render.js       Canvas-Grafik
+js/input.js        Tastatur, Touch-Joystick, Gamepad
+js/audio.js        Synthetisierte Soundeffekte
+js/debug.js        Debug-Ansicht (?debug)
+tools/simtest.mjs  Headless-Test mit Bots
+docs/ROADMAP.md    Plan für die Überarbeitung
 ```
 
 ### Lokal starten
@@ -79,11 +89,39 @@ Dann <http://localhost:8000> öffnen.
 Repository → **Settings** → **Pages** → Source: *Deploy from a branch* → Branch `main`, Ordner `/ (root)` → Save.
 Nach ~1 Minute läuft das Spiel unter `https://<dein-name>.github.io/plumps/`.
 
+### Testen
+
+```bash
+node tools/simtest.mjs --quick
+```
+
+Simuliert ohne Grafik Runden nur mit Bots, in allen Kombinationen aus Modus, Insel und Karte. Der Test meldet:
+- Abstürze und Runden ohne Ende
+- durchschnittliche Rundendauer pro Modus
+- Siegverteilung nach Bot-Stärke
+- die Prüfungen zur Treffer-Zuordnung
+
+Ohne `--quick` laufen alle gut 1000 Kombinationen (ca. 45 s). Mit `--seed 123` gibt es einen anderen Startwert, mit `--only klassik/kreuz/eis` genau eine Kombination.
+
+### Debug-Ansicht
+
+Hänge `?debug` an die Adresse, z. B. `http://localhost:8000/?debug`. Dann siehst du:
+- FPS und Ping
+- den Startwert der Runde
+- Hitboxen und die aktiven Effekte pro Spieler; `← Name` zeigt, wem ein Sturz gerade gutgeschrieben würde
+- Schieberegler für die wichtigsten Werte aus `js/tuning.js`
+
+Die Regler wirken nur beim Host bzw. im Solo-Spiel. Mit „Geänderte Werte kopieren“ landen deine Änderungen als JSON in der Zwischenablage.
+
 ### Eigene Inhalte bauen
 
-- **Chaos-Karte:** in `js/sim.js` bei `CARDS` eintragen und in `Game.step()` mit `if (card === 'deinekarte')` die Regel einbauen.
-- **Insel:** in `js/maps.js` bei `MAPS` aus Kreisen (`k: 'c'`) und Rechtecken (`k: 'r'`) zusammensetzen. `angle: (t) => …` lässt sie drehen, `orbit` lässt Teile im Kreis fahren.
-- **Power-up:** bei `ITEMS` eintragen und in `Game.applyItem()` die Wirkung einbauen.
+Jede Datei in `js/modes/`, `js/cards/`, `js/items/` und `js/maps/` ist ein Objekt mit optionalen Hooks. Welche es gibt, steht oben in der jeweiligen `index.js`.
+
+- **Chaos-Karte:** neue Datei in `js/cards/`, in `js/cards/index.js` eintragen. Zum Beispiel ändert `globalMods(g, gm)` Werte für alle, `step(g, dt, alive)` läuft jeden Tick.
+- **Modus:** neue Datei in `js/modes/`. Mindestens `checkEnd` oder `time` + `score`.
+- **Insel:** neue Datei in `js/maps/` aus Kreisen (`k: 'c'`) und Rechtecken (`k: 'r'`). `angle: (t) => …` lässt sie drehen, `orbit` lässt Teile im Kreis fahren.
+- **Power-up:** neue Datei in `js/items/` mit `apply` und optional `effects`.
+- Zahlen gehören nach `js/tuning.js`.
 
 ## Bekannte Grenzen
 

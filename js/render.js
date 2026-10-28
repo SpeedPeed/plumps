@@ -271,6 +271,8 @@ export class View {
     // Geister schweben über allem
     for (const p of s.p) if (p.st === 'ghost') this.drawGhost(p, myId, now);
 
+    if (this.debug) this.drawDebug(s, shapes, holes);
+
     ctx.restore();
 
     // Partikel altern lassen
@@ -362,6 +364,34 @@ export class View {
         ctx.fillText(ITEMS[k]?.emoji || '', p.x + Math.cos(a) * (r + 14), p.y + Math.sin(a) * (r + 14));
       });
       if (p.em >= 0) this.drawBubble(p.x, top - 6, EMOTES[p.em]);
+    }
+    ctx.restore();
+  }
+
+  // Hitboxen für die Debug-Ansicht (?debug)
+  drawDebug(s, shapes, holes) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,255,255,0.8)';
+    for (const sh of shapes) {
+      ctx.beginPath();
+      if (sh.k === 'c') ctx.arc(sh.x, sh.y, sh.r, 0, Math.PI * 2);
+      else { ctx.save(); ctx.translate(sh.x, sh.y); ctx.rotate(sh.a); ctx.rect(-sh.w / 2, -sh.h / 2, sh.w, sh.h); ctx.restore(); }
+      ctx.stroke();
+    }
+    for (const [hx, hy, hr] of holes) { ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(255,255,0,0.8)';
+    for (const [x, y] of s.it || []) { ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(255,80,0,0.8)';
+    for (const [x, y] of s.bm || []) { ctx.beginPath(); ctx.arc(x, y, 95, 0, Math.PI * 2); ctx.stroke(); }
+    for (const p of s.p) {
+      if (p.st === 'ghost') continue;
+      ctx.strokeStyle = p.dt ? '#ff2020' : '#ff40ff';
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx * 0.2, p.y + p.vy * 0.2); ctx.stroke();
+      ctx.strokeStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.fx * (p.r + 10), p.y + p.fy * (p.r + 10)); ctx.stroke();
     }
     ctx.restore();
   }

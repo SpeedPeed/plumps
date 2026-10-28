@@ -3,6 +3,7 @@ import { Host, Client } from './net.js';
 import { View } from './render.js';
 import { initInput, readInput } from './input.js';
 import { sfx, unlockAudio, toggleMute } from './audio.js';
+import { initDebug, DEBUG } from './debug.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -22,6 +23,7 @@ let current = null;       // zuletzt gezeichneter Snapshot
 let localEvents = [];
 let netEvents = [];
 let botCounter = 0;
+const pings = {};         // Ping in ms: pings.me (Client) bzw. pings[spielerId] (Host)
 
 // ---------- Menü ----------
 
@@ -101,6 +103,10 @@ $('btnJoin').onclick = () => {
         $('menuErr').textContent = '';
         setBusy(false);
         startLoops();
+      } else if (msg.t === 'ping') {
+        net.send({ t: 'pong', c: msg.c });
+      } else if (msg.t === 'pong') {
+        pings.me = Math.round(performance.now() - msg.c);
       } else if (msg.t === 'full') {
         menuError('Der Raum ist voll (max. 6).');
       } else if (msg.t === 's') {
@@ -149,6 +155,10 @@ function hostReceive(id, msg) {
     game.setHat(id, msg.h | 0);
   } else if (msg.t === 'emo') {
     game.emote(id, msg.i | 0);
+  } else if (msg.t === 'ping') {
+    net.send(id, { t: 'pong', c: msg.c });
+  } else if (msg.t === 'pong') {
+    pings[id] = Math.round(performance.now() - msg.c);
   }
 }
 
@@ -215,6 +225,7 @@ $('btnMute').onclick = () => { $('btnMute').textContent = toggleMute() ? '🔇' 
 
 let simWorker = null;
 let inputTimer = null;
+let pingTimer = null;
 let rafId = null;
 let lastTick = 0;
 let acc = 0;
@@ -222,6 +233,13 @@ let tickN = 0;
 
 function startLoops() {
   $('menu').classList.add('hidden');
+  if (mode !== 'solo') {
+    // Jede Seite misst einmal pro Sekunde die Antwortzeit
+    pingTimer = setInterval(() => {
+      const msg = { t: 'ping', c: performance.now() };
+      if (mode === 'client') net.send(msg); else net.broadcast(msg);
+    }, 1000);
+  }
   if (mode === 'client') {
     inputTimer = setInterval(() => net.send({ t: 'in', ...readInput() }), 33);
   } else {
@@ -266,6 +284,8 @@ function leave() {
   if (net) net.close();
   if (simWorker) simWorker.terminate();
   clearInterval(inputTimer);
+  clearInterval(pingTimer);
+  for (const k in pings) delete pings[k];
   cancelAnimationFrame(rafId);
   net = game = simWorker = null;
   mode = myId = current = lastGrid = null;
@@ -316,6 +336,7 @@ function render(now, dt) {
   }
   if (s) { current = s; updateUI(s); }
   view.draw(current, myId, dt, now / 1000);
+  debug.frame(dt, current);
 }
 
 // ---------- Ereignisse → Sound/Effekte/Toasts ----------
@@ -487,6 +508,7 @@ function updateUI(s) {
 }
 
 initInput($('joy'), $('knob'), $('dashBtn'));
+const debug = initDebug({ getGame: () => game, getRole: () => mode, getPings: () => pings, view });
 
 // Im Menü spielen ein paar Bots im Hintergrund – jedes Mal ein anderer Modus
 let demo = null;
@@ -512,4 +534,4 @@ let idleLast = 0;
 })(0);
 
 // Nur für Tests: ?debug in der URL macht das Spielobjekt erreichbar
-if (new URLSearchParams(location.search).has('debug')) window.__game = () => game;
+if (DEBUG) window.__game = () => game;
