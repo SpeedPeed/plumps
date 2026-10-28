@@ -29,6 +29,9 @@ Außerdem:
 - **Hüte & Emotes** – Such dir in der Lobby einen Hut aus, im Spiel gibt's Emotes auf den Tasten 1–5.
 - **Auszeichnungen** am Ende: Rausschubser, Wasserratte, Pups-Meister, Sammler, Dash-Junkie.
 - **Bots 🤖** in drei Stärken (Leicht, Mittel, Schwer) für kleine Runden.
+- **Jede Insel hat ihr eigenes Thema:** Tropen, Schrottplatz, Vulkan, Süßigkeiten, Korallenriff, Acker, Holzfloß …
+- **Farbenblind-freundlich:** Jede Spielerfarbe hat zusätzlich ein eigenes Muster auf dem Blob.
+- **Musik**, die sich steigert, wenn die Insel schrumpft und im letzten Duell. Musik und Effekte sind in den Einstellungen (Zahnrad) getrennt regelbar.
 
 ## Steuerung
 
@@ -66,7 +69,8 @@ Der Host sollte den Tab offen lassen – sein Browser ist der Server.
 - Reines HTML/CSS/JavaScript, kein Build-Schritt, keine Abhängigkeiten außer [PeerJS](https://peerjs.com/).
 - Multiplayer läuft **Peer-to-Peer über WebRTC**: Der Browser des Hosts berechnet das Spiel und schickt 30× pro Sekunde den Zustand an alle. Es gibt keinen eigenen Server, also kostet das Ganze nichts.
 - Der öffentliche PeerJS-Server wird nur zum Verbinden gebraucht (wie ein Telefonbuch).
-- Alle Grafiken und Sounds werden im Code erzeugt – keine Bild- oder Audiodateien.
+- Alle Grafiken, Musik und Sounds werden im Code erzeugt. Es gibt keine Bild- oder Audiodateien und keine Emojis, deshalb sieht das Spiel auf jedem Gerät gleich aus.
+- Bricht die Bildrate ein (z. B. auf älteren Handys), schaltet das Spiel automatisch in einen Sparmodus mit weniger Effekten.
 
 ```
 index.html         Bildschirme (Menü, Lobby, HUD, Kartenwahl, Siegerehrung)
@@ -82,12 +86,19 @@ js/maps/*.js       Inseln
 js/geometry.js     Inselformen: Kreise/Rechtecke, drehend/fahrend
 js/bots.js         Bot-Verhalten
 js/net.js          Host/Client über PeerJS
-js/render.js       Canvas-Grafik
+js/render.js       Canvas-Grafik: Inseln mit Seitenwand, Wasser, Blobs, Effekte, Kamera
+js/art/icons.js    Alle Symbole als Vektorgrafik (Power-ups, Karten, Hüte, Emotes …)
+js/art/themes.js   Inselthemen und Materialien
+js/art/blob.js     Blob-Körper, Muster, Gesichter, Namensschilder
+js/art/avatar.js   Blob-Bildchen für die Oberfläche
 js/input.js        Tastatur, Touch-Joystick, Gamepad
-js/audio.js        Synthetisierte Soundeffekte
+js/audio.js        Effekte mit mehreren Schichten, Blob-Stimmen, Lautstärke
+js/music.js        Prozedurale Musik
 js/debug.js        Debug-Ansicht (?debug)
 tools/simtest.mjs  Headless-Test mit Bots
+tools/icons.html   Übersicht aller Symbole (im Browser öffnen)
 docs/ROADMAP.md    Plan für die Überarbeitung
+docs/STYLE.md      Stil-Leitfaden: Palette, Linien, Formen, Inselthemen, Gesichter, Ton
 ```
 
 ### Lokal starten
