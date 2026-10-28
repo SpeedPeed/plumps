@@ -57,8 +57,10 @@ Außerdem:
 - **Finale** – Wer Matchball hat (nur noch 1 Punkt zum Sieg), muss eine Finalrunde „Letzter Blob“ auf kleiner Insel gewinnen – mit eigener Musik. Gewinnt jemand anderes, bekommt er den Punkt und es geht normal weiter, bis zum nächsten Finale.
 - **Geister 👻** – Wer im Modus „Letzter Blob“ rausfliegt, schwebt weiter und kann mit einer **Pups-Welle** die Lebenden ins Wasser blasen.
 - **Königsmord 👑** – Wer den Führenden ins Wasser schubst, bekommt einen Bonuspunkt.
-- **Hüte, Farben & Emotes** – Such dir in der Lobby einen Hut und eine freie Farbe aus, im Spiel gibt's Emotes auf den Tasten 1–5.
-- **Auszeichnungen** am Ende: Rausschubser, Wasserratte, Pups-Meister, Sammler, Dash-Junkie.
+- **Hüte, Farben & Emotes** – Such dir in der Lobby einen Hut und eine freie Farbe aus, im Spiel gibt's Emotes auf den Tasten 1–8.
+- **Stufen & Garderobe** – Jedes Match bringt XP (mitspielen, Runden, Rundensiege, Rauswürfe, Konter, Rettungen, Platzierung, Auszeichnungen – etwa 250 pro Match). Neue Stufen schalten frei: 6 weitere Hüte, 6 Spuren (Funken, Blasen, Herzchen, Regenbogen, Sternenstaub, Konfetti), 3 Emotes und 4 Siegestänze. Alle sehen, was du trägst. Unter „Dein Blob“ im Menü (oder „Garderobe“ in der Lobby) siehst du Stufe, Statistik und was als Nächstes kommt. Gespeichert wird nur im Browser – ohne Konto.
+- **Auszeichnungen** am Ende: Rausschubser, Konter-König, Kantenkünstler, Brecheisen, Pechvogel, Wasserratte, Pups-Meister, Sammler, Dash-Junkie.
+- **Erinnerungsfoto** – Bei der Siegerehrung gibt's ein Bild mit Podest, Hüten, Punkten und Auszeichnungen zum Speichern oder Teilen.
 - **Bots 🤖** in drei Stärken (Leicht, Mittel, Schwer) für kleine Runden.
 - **Jede Insel hat ihr eigenes Thema:** Tropen, Schrottplatz, Vulkan, Süßigkeiten, Korallenriff, Acker, Holzfloß …
 - **Farbenblind-freundlich:** Jede Spielerfarbe hat zusätzlich ein eigenes Muster auf dem Blob.

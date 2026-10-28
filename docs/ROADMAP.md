@@ -104,5 +104,6 @@ Schere-Stein-Papier: **Dash > Herumlaufen, Stemmen > Dash, aufgeladener Dash > S
 3. **Team-Modus (Phase 4):** Nur ab 4 Spielern sinnvoll. Sollen Bots auffüllen, damit Teams bei 3 oder 5 Spielern aufgehen?
    *Umgesetzt (vorläufig):* Team-Plumps kommt nur bei gerader Spielerzahl ab 4 in den Topf – mitten im Match tauchen keine zusätzlichen Bots auf. Lässt sich ändern, falls ihr lieber auffüllen wollt.
 4. **Freischaltungen (Phase 5):** Ein Profil im localStorage lässt sich leicht manipulieren. Für ein Freundespiel halte ich das für egal. Passt das?
+   *Umgesetzt so:* Profil nur im localStorage, der Host prüft nur, ob Hut/Spur/Tanz gültige Werte sind. Freischaltungen sind reine Optik.
 5. **Spielzeit pro Match:** Für „eine Stunde, 3 Matches“ wären ca. 12–18 Minuten pro Match ideal. Soll der Standard dafür auf 5 Punkte bleiben?
 6. **Zufall mit Startwert:** Ein Match lässt sich mit gleichem Startwert und gleichen Eingaben nachspielen. Soll man in Phase 3 den Startwert z. B. für Revanchen „gleiche Inselfolge“ nutzen können, oder bleibt das nur ein Werkzeug für Tests?
