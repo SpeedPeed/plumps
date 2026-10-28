@@ -96,6 +96,38 @@ export const T = {
   FINALE_SHRINK: 12,      // … die früher schrumpft
   EMOTE_TIME: 2.2,
 
+  // --- Insel-Mechaniken (js/maps/) – alles kündigt sich HZ_WARN Sekunden vorher an ---
+  HZ_WARN: 2.2,
+  HZ_AIM: 0.6,            // Anteil der Gefahren, die in die Nähe eines Spielers zielen
+  KOKOS_EVERY: [3.5, 5.5],
+  KOKOS_R: 70,
+  KOKOS_F: 520,
+  LAVA_EVERY: [2.5, 4],
+  LAVA_R: 75,
+  LAVA_F: 600,
+  SINK_EVERY: [9, 13],    // Sandbank / Seestern-Arm
+  SINK_DOWN: 6,
+  SINK_ANIM: 0.5,
+  RISE_ANIM: 0.8,
+  BRUECKE_EVERY: [14, 18],
+  BRUECKE_DOWN: 7,
+  MOLE_EVERY: [4, 6],
+  MOLE_R: 48,
+  MOLE_OPEN: 4,
+  SPIN_CALM: 9,           // Drehkreuz/Karussell: so lange normal, dann Warnung, dann Turbo
+  SPIN_FAST: 3,
+  KARUSSELL_TURBO: 2.6,
+  FLIEH: 3,
+  WIPPE_F: 260,
+  CRATES: 3,
+  CRATE_R: 30,
+  CRATE_FRIC: 2.2,
+  CRATE_MASS: 2.2,
+  CRATE_HIT_SPEED: 160,
+  CRATE_DASH: 250,
+  CRATE_BACK: 4,
+  CRATE_LAND_F: 380,
+
   // --- Power-ups ---
   ITEM_FIRST_MIN: 3,
   ITEM_FIRST_MAX: 5,

@@ -6,6 +6,7 @@
 //   node tools/simtest.mjs --seed 123      anderer Startwert (Standard: 1)
 //   node tools/simtest.mjs --only klassik/kreuz/eis   genau eine Kombination (Karte "-" = keine)
 //   node tools/simtest.mjs --matches 40    Anzahl gemischter Matches für die Siegverteilung
+//   node tools/simtest.mjs --ohne-mechanik Inseln ohne ihre Mechanik (zum Vergleich)
 //
 // Meldet Abstürze, Runden ohne Ende, durchschnittliche Rundendauer pro Modus und die
 // Siegverteilung nach Bot-Stärke. Exit-Code 1, wenn etwas schiefgeht.
@@ -20,6 +21,8 @@ const SEED = Number(opt('--seed', 1)) >>> 0;
 const ONLY = opt('--only', null);
 const MATCHES = Number(opt('--matches', QUICK ? 12 : 40));
 const DT = 1 / 60;
+// Zum Vergleich: Inseln ohne ihre Mechanik
+if (args.includes('--ohne-mechanik')) for (const m of Object.values(MAPS)) { delete m.step; delete m.setup; }
 
 const errors = [];
 const stuck = [];
@@ -41,12 +44,14 @@ function playRound(mode, map, card, seed, levels) {
   g.mode = mode; g.map = map; g.card = card; g.round = 0;
   g.beginCountdown();
   const limit = roundLimit(g);
-  const events = { ko: 0, selfKo: 0 };
+  const events = { ko: 0, selfKo: 0, falls: 0, hazards: 0 };
   let steps = 0;
   while (g.phase !== 'roundEnd') {
     g.step(DT);
     for (const e of g.drainEvents()) {
       if (e.k === 'ko') { events.ko++; if (e.id === e.victim) events.selfKo++; }
+      if ((e.k === 'plumps' || e.k === 'boom') && e.id) events.falls++;
+      if (e.k === 'hazard') events.hazards++;
     }
     JSON.stringify(g.snapshot([]));
     if (g.phase === 'play' && g.t > limit) return { stuck: true, t: g.t, g };
@@ -78,6 +83,7 @@ function combos() {
 const t0 = Date.now();
 const list = combos();
 const perMode = {};
+const perMap = {};
 let n = 0, ko = 0, selfKo = 0;
 for (const [mo, mp, c] of list) {
   const seed = deriveSeed(SEED, n++);
@@ -89,6 +95,8 @@ for (const [mo, mp, c] of list) {
     m.rounds++; m.time += res.t; m.max = Math.max(m.max, res.t);
     if (!res.winner) m.draws++;
     ko += res.events.ko; selfKo += res.events.selfKo;
+    const pm = (perMap[mp] ||= { rounds: 0, time: 0, falls: 0, ko: 0, hazards: 0 });
+    pm.rounds++; pm.time += res.t; pm.falls += res.events.falls; pm.ko += res.events.ko; pm.hazards += res.events.hazards;
   } catch (e) {
     errors.push(`${tag}: ${e.stack.split('\n').slice(0, 3).join(' | ')}`);
   }
@@ -102,6 +110,13 @@ for (const mo of MODE_IDS) {
   if (!m) continue;
   const time = MODES[mo].time?.();
   console.log(`${MODES[mo].name.padEnd(16)} ${String(m.rounds).padStart(6)} ${(m.time / m.rounds).toFixed(1).padStart(8)} s ${m.max.toFixed(1).padStart(7)} s ${String(m.draws).padStart(10)}       ${time ? time + ' s' : 'Schrumpfen'}`);
+}
+console.log('\nInsel            Ø Dauer   Stürze/Min   ohne Schubser   Warnungen/Min');
+for (const mp of MAP_IDS) {
+  const m = perMap[mp];
+  if (!m) continue;
+  const min = m.time / 60;
+  console.log(`${MAPS[mp].name.padEnd(16)} ${(m.time / m.rounds).toFixed(1).padStart(6)} s ${(m.falls / min).toFixed(1).padStart(10)} ${(100 * (1 - m.ko / Math.max(1, m.falls))).toFixed(0).padStart(12)} % ${(m.hazards / min).toFixed(1).padStart(12)}`);
 }
 console.log(`\nRauswürfe: ${ko}, davon sich selbst gutgeschrieben: ${selfKo}`);
 if (selfKo) errors.push(`${selfKo} Rauswürfe wurden dem Opfer selbst gutgeschrieben`);

@@ -66,7 +66,11 @@ export class Game {
     this.t = 0;
     this.k = 1;
     this.holes = [...(this.mapDef.holes || [])];
-    this.shapes = poseShapes(this.mapDef, 0, 1);
+    this.shapeMul = {};   // Formen, die gerade versinken (Index -> Größe 0..1)
+    this.hz = [];         // angekündigte Gefahren der Insel
+    this.crates = [];     // schiebbare Kisten
+    this.mapS = {};       // Zustand der Insel-Mechanik
+    this.shapes = this.pose(0);
     this.prevShapes = this.shapes;
     this.bombs = [];
     this.bumpers = [];
@@ -81,6 +85,33 @@ export class Game {
     this.regicided = new Set();
     this.endDelay = 0;
     this.gm = this.globalMods();
+  }
+
+  // Lage aller Formen zur Zeit t (inklusive Schrumpfen und versinkender Teile)
+  pose(t) {
+    const md = this.mapDef;
+    const shapes = poseShapes(md, md.warp ? md.warp(t) : t, this.k);
+    for (const i in this.shapeMul) {
+      const sh = shapes[i], m = this.shapeMul[i];
+      if (!sh) continue;
+      if (sh.k === 'c') sh.r *= m; else { sh.w *= m; sh.h *= m; }
+    }
+    return shapes;
+  }
+
+  // Gefahr ankündigen: { kind, x, y, r, warn, i?, fire(g) } – nach `warn` Sekunden passiert es
+  warn(h) {
+    h.t = h.max = h.warn;
+    this.hz.push(h);
+    this.emit({ k: 'hazard', kind: h.kind, x: Math.round(h.x), y: Math.round(h.y) });
+  }
+
+  hazardStep(dt) {
+    for (const h of this.hz) {
+      h.t -= dt;
+      if (h.t <= 0) { h.done = true; h.fire?.(this, h); }
+    }
+    this.hz = this.hz.filter(h => !h.done);
   }
 
   // Werte, die für alle gelten; Karten dürfen sie verändern
@@ -268,7 +299,7 @@ export class Game {
     this.resetArena();
     this.fallRecs = [];
     this.replay = null;
-    if (this.finale) { this.k = T.FINALE_SCALE; this.shapes = poseShapes(this.mapDef, 0, this.k); this.prevShapes = this.shapes; }
+    if (this.finale) { this.k = T.FINALE_SCALE; this.shapes = this.pose(0); this.prevShapes = this.shapes; }
     const max = Math.max(0, ...[...this.players.values()].map(p => p.score));
     if (max > 0) for (const p of this.players.values()) if (p.score === max) this.crowned.add(p.id);
     for (const p of this.players.values()) {
@@ -294,6 +325,7 @@ export class Game {
       const a = this.rng.range(0, TAU), r = Math.sqrt(this.rng.next()) * 330;
       const x = Math.cos(a) * r, y = Math.sin(a) * r;
       if (!onGround(this.shapes, this.holes, x, y, margin * this.k)) continue;
+      if (this.hz.some(h => Math.hypot(h.x - x, h.y - y) < h.r + margin)) continue;
       let d = 1e9;
       for (const q of avoid) d = Math.min(d, Math.hypot(q.x - x, q.y - y));
       if (d > bestD) { best = { x, y }; bestD = d; }
@@ -428,7 +460,7 @@ export class Game {
     const all = [...this.players.values()];
     const alive = all.filter(p => p.state === 'alive');
     this.prevShapes = this.shapes;
-    this.shapes = poseShapes(this.mapDef, this.t, this.k);
+    this.shapes = this.pose(this.t);
     if (this.mapDef.moving) for (const p of alive) this.carry(p);
     for (const p of all) if (p.bot) botThink(this, p, alive, dt);
     for (const p of alive) this.movePlayer(p, dt, alive);
@@ -523,12 +555,13 @@ export class Game {
     // Insel bewegen / schrumpfen
     if (this.t > gm.shrinkStart) this.k = Math.max(0, this.k - gm.shrinkRate * dt);
     this.prevShapes = this.shapes;
-    this.shapes = poseShapes(this.mapDef, this.t, this.k);
+    this.shapes = this.pose(this.t);
     if (this.mapDef.moving) {
       for (const p of alive) this.carry(p);
-      for (const o of [...this.items, ...this.bananas, ...this.bumpers, ...(this.M.carryables?.(this) || [])]) this.carry(o);
+      for (const o of [...this.items, ...this.bananas, ...this.bumpers, ...this.crates, ...(this.M.carryables?.(this) || [])]) this.carry(o);
     }
     this.mapDef.step?.(this, dt, alive);
+    this.hazardStep(dt);
 
     for (const p of all) if (p.bot) botThink(this, p, alive, dt);
 
@@ -922,6 +955,9 @@ export class Game {
       bu: this.bumpers.map(b => [r1(b.x), r1(b.y), b.r]),
       it: this.items.map(i => [r1(i.x), r1(i.y), i.type, i.t < 3 ? 1 : 0]),
       bn: this.bananas.map(b => [r1(b.x), r1(b.y)]),
+      hz: this.hz.map(h => [h.kind, r1(h.x), r1(h.y), r1(h.r), Math.round((1 - h.t / h.max) * 100) / 100, h.i ?? -1]),
+      kx: this.crates.map(c => [r1(c.x), r1(c.y), c.r, r1(c.a)]),
+      mx: this.phase === 'play' || this.phase === 'roundEnd' ? this.mapDef.snapshot?.(this) || null : null,
       aw: this.phase === 'matchEnd' ? this.awards() : null,
       p: [...this.players.values()].map(p => ({
         id: p.id, n: p.name, c: p.color, ci: p.ci, b: p.bot ? 1 : 0, h: p.hat,

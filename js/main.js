@@ -493,6 +493,9 @@ function watchEmotes(s) {
 
 // ---------- Ereignisse → Sound/Effekte/Toasts ----------
 
+// Symbol pro Insel-Mechanik (für die Erklärung beim ersten Mal)
+const MAP_ICON = { rund: 'kokos', quadrat: 'kiste', kreuz: 'drehen', bruecke: 'ausrufe', archipel: 'welle', ring: 'lava', karussell: 'drehen', stern: 'welle', knolle: 'maulwurf', wippe: 'welle' };
+
 function nameOf(s, id) { return esc(s.p.find(p => p.id === id)?.n || '???'); }
 function ciOf(s, id) { return s.p.find(p => p.id === id)?.ci ?? 0; }
 
@@ -522,6 +525,16 @@ function handleEvent(e, s) {
     case 'duel': sfx.duel(); koText('<b>Das letzte Duell!</b>'); break;
     case 'plumps': chargeStop(e.id); sfx.plumps(); babble(ciOf(s, e.id), 'fall'); if (mine) vibrate(120); break;
     case 'boom': sfx.boom(); vibrate(60); break;
+    case 'hazard': {
+      const play = { kokos: sfx.whistle, crate: sfx.whistle, lava: sfx.rumble, mole: sfx.dig, sink: sfx.creak, spin: sfx.alarm }[e.kind];
+      play?.();
+      if (e.kind === 'spin') toast(`${iconHTML('drehen')} Gleich dreht's auf – festhalten!`);
+      break;
+    }
+    case 'impact': (e.kind === 'lava' ? sfx.sizzle : sfx.impact)(); break;
+    case 'sink': sfx.sink(); break;
+    case 'rise': sfx.rise(); break;
+    case 'splash': sfx.splash(); break;
     case 'pups': sfx.pups(); break;
     case 'bumper': sfx.bumper(); break;
     case 'swap': sfx.swap(); toast(`${iconHTML('tausch')} Platztausch!`); break;
@@ -529,6 +542,7 @@ function handleEvent(e, s) {
     case 'count': sfx.count(); break;
     case 'go':
       sfx.go(); flashGo();
+      if (MAPS[s.mp]?.hint) tip('map-' + s.mp, `${iconHTML(MAP_ICON[s.mp] || 'ausrufe')} <b>${MAPS[s.mp].name}:</b> ${MAPS[s.mp].hint}`);
       tip('controls', isTouch
         ? '<b>DASH</b> antippen = kurz · <b>halten</b> = aufladen · <b>STEMMEN</b> fängt Dashes ab'
         : '<b>Leertaste</b> antippen = Dash · <b>halten</b> = aufladen · <b>Shift</b> = Stemmen (fängt Dashes ab)');

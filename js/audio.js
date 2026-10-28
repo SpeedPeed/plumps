@@ -224,6 +224,17 @@ export const sfx = {
   save: () => { tone('triangle', 420, 900, 0.12, 0.16); tone('triangle', 900, 1250, 0.12, 0.13, 0.1); noise(0.15, 0.05, 3000, 0, 'highpass'); },
   hit: (p = 0.5) => { noise(0.2, 0.25 + p * 0.25, 2000, 0, 'lowpass', 300); tone('sine', 220, 60, 0.28, 0.28 + p * 0.18); tone('square', 120, 50, 0.12, 0.08 * p, 0, 600); },
   ko: () => { tone('sawtooth', 240, 110, 0.6, 0.1, 0.12, 1500); tone('sawtooth', 300, 140, 0.6, 0.07, 0.12, 1500); noise(0.8, 0.1, 500, 0.1, 'lowpass', 150); },
+  // Insel-Mechaniken: Ankündigung und Einschlag
+  whistle: () => { tone('sine', 1800, 500, 1.1, 0.07); tone('sine', 1810, 505, 1.1, 0.04, 0, 3000); },
+  rumble: () => { noise(1.0, 0.18, 300, 0, 'lowpass', 120); tone('sawtooth', 55, 45, 1.0, 0.08, 0, 300); },
+  creak: () => { for (let i = 0; i < 3; i++) tone('sawtooth', 180 + i * 30, 120 + i * 20, 0.35, 0.06, i * 0.4, 900); noise(0.3, 0.05, 1400, 0.2, 'bandpass', 900, 3); },
+  alarm: () => [0, 1, 2].forEach(i => { tone('square', 880, 880, 0.12, 0.06, i * 0.25, 2500); tone('square', 660, 660, 0.12, 0.05, i * 0.25 + 0.12, 2500); }),
+  dig: () => { for (let i = 0; i < 4; i++) noise(0.12, 0.12, 800, i * 0.18, 'lowpass', 400); },
+  impact: () => { noise(0.35, 0.4, 1200, 0, 'lowpass', 250); tone('sine', 150, 50, 0.3, 0.3); },
+  sizzle: () => { noise(0.6, 0.15, 5000, 0, 'highpass'); tone('sine', 140, 50, 0.3, 0.25); },
+  sink: () => { for (let i = 0; i < 6; i++) tone('sine', 300 + Math.random() * 300, 120, 0.2, 0.08, i * 0.08); noise(0.6, 0.2, 700, 0, 'lowpass', 300); },
+  rise: () => { for (let i = 0; i < 4; i++) tone('sine', 300 + i * 150, 600 + i * 200, 0.12, 0.07, i * 0.07); },
+  splash: () => { noise(0.4, 0.15, 1400, 0, 'lowpass', 500); tone('sine', 260, 90, 0.25, 0.15); },
   // Zurückspulen vor der Wiederholung
   replay: () => { tone('sawtooth', 900, 200, 0.35, 0.06, 0, 2200); tone('sawtooth', 700, 150, 0.35, 0.05, 0.03, 2000); noise(0.35, 0.08, 3000, 0, 'bandpass', 2500, 3); tone('sine', 660, 660, 0.12, 0.1, 0.38); },
   duel: () => { tone('square', 196, 196, 0.25, 0.1, 0, 1800); tone('square', 147, 147, 0.5, 0.1, 0.28, 1800); tone('sine', 73, 73, 0.6, 0.25, 0.28); noise(0.6, 0.1, 300, 0.28); },

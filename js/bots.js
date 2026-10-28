@@ -63,6 +63,12 @@ export function botThink(g, p, alive, dt) {
       const dx = p.x - bo.x, dy = p.y - bo.y, d = Math.hypot(dx, dy) || 1;
       if (d < 130) { mx += dx / d * 3; my += dy / d * 3; }
     }
+    // Angekündigte Gefahren der Insel meiden (aufmerksame Bots früher)
+    for (const h of g.hz) {
+      if (h.t > L.react + 1.4 || rng.next() > L.care) continue;
+      const dx = p.x - h.x, dy = p.y - h.y, d = Math.hypot(dx, dy) || 1;
+      if (d < h.r + p.r + 30) { mx += dx / d * 3; my += dy / d * 3; }
+    }
     const m = Math.hypot(mx, my) || 1;
     mx /= m; my /= m;
 

@@ -192,6 +192,16 @@ const ICONS = {
   pinsel(c) { ICONS.farbe(c); },
   ausrufe(c) { rrect(c, -9, -40, 18, 52, 9); fs(c, '#FFC93C'); circ(c, 0, 30, 10); fs(c, '#FFC93C'); },
 
+  // ----- Insel-Mechaniken -----
+  kokos(c) { circ(c, 0, 4, 34); fs(c, '#8A5A2E'); for (const [x, y] of [[-10, -4], [8, -6], [0, 8]]) { circ(c, x, y, 4.5); c.fillStyle = '#3B2414'; c.fill(); } c.beginPath(); for (let i = 0; i < 7; i++) { const a = -2.6 + i * 0.35; c.moveTo(Math.cos(a) * 26, 4 + Math.sin(a) * 26); c.lineTo(Math.cos(a) * 33, 4 + Math.sin(a) * 33); } st(c, 3, '#B07A45'); shine(c, -14, -12, 7, 4); },
+  kiste(c) { rrect(c, -34, -34, 68, 68, 6); fs(c, '#C98A4B'); rrect(c, -24, -24, 48, 48, 3); st(c, 4, '#8A5A2E'); c.beginPath(); c.moveTo(-24, -24); c.lineTo(24, 24); c.moveTo(24, -24); c.lineTo(-24, 24); st(c, 6, '#8A5A2E'); },
+  lava(c) { c.beginPath(); c.moveTo(0, -42); c.bezierCurveTo(22, -18, 34, 0, 30, 14); c.arc(0, 12, 30, 0.07, Math.PI - 0.07); c.bezierCurveTo(-34, 0, -22, -18, 0, -42); c.closePath(); fs(c, '#FF7A2A'); c.beginPath(); c.moveTo(0, -18); c.bezierCurveTo(12, -4, 16, 6, 14, 14); c.arc(0, 14, 14, 0, Math.PI); c.bezierCurveTo(-16, 6, -12, -4, 0, -18); c.fillStyle = '#FFE066'; c.fill(); },
+  maulwurf(c) { ell(c, 0, 30, 44, 12); fs(c, '#8A5A2E'); c.beginPath(); c.arc(0, 18, 30, Math.PI, TAU); c.closePath(); fs(c, '#5B4A5E'); circ(c, 0, 8, 8); fs(c, '#FF9FB0', 4); for (const s of [-1, 1]) { circ(c, s * 13, -2, 3.5); c.fillStyle = INK; c.fill(); ell(c, s * 30, 24, 10, 6, s * 0.4); fs(c, '#FF9FB0', 4); } },
+  drehen(c) { c.beginPath(); c.arc(0, 0, 30, -0.3, Math.PI * 1.4); st(c, 14); c.beginPath(); c.arc(0, 0, 30, -0.3, Math.PI * 1.4); st(c, 7, '#FFC93C'); poly(c, [[30, -26], [44, 4], [14, 0]]); fs(c, '#FFC93C', 5); },
+  team(c) { blobBody(c, -16, 8, 26, '#E69F00'); eyes(c, -16, 2, 9, 6); blobBody(c, 18, 8, 26, '#0072B2'); eyes(c, 18, 2, 9, 6); c.beginPath(); c.moveTo(-6, 30); c.lineTo(8, 30); st(c, 6); },
+  boss(c) { blobBody(c, 0, 8, 36, '#7A3FA0'); for (const s of [-1, 1]) { poly(c, [[s * 14, -24], [s * 30, -46], [s * 32, -18]]); fs(c, '#FFF6E5', 5); c.beginPath(); c.moveTo(s * 22, -8); c.lineTo(s * 6, -2); st(c, 6); circ(c, s * 13, 6, 5); c.fillStyle = '#FFE066'; c.fill(); } c.beginPath(); c.moveTo(-12, 24); c.lineTo(-4, 18); c.lineTo(4, 24); c.lineTo(12, 18); st(c, 5); },
+  konter(c) { ICONS.schild(c); poly(c, [[-4, -18], [10, -18], [2, -2], [12, -2], [-6, 24], [0, 4], [-10, 4]]); fs(c, '#FFC93C', 4); },
+
   // ----- Hüte (Fuß liegt bei y = 30) -----
   zylinder(c) { ell(c, 0, 26, 46, 10); fs(c, '#2E2A40'); rrect(c, -28, -36, 56, 64, 6); fs(c, '#2E2A40'); rrect(c, -28, 8, 56, 12, 2); fs(c, '#E8483C', 4); shine(c, -16, -20, 4, 12, 0); },
   kappe(c) { c.beginPath(); c.moveTo(-34, 26); c.bezierCurveTo(-36, -28, 34, -28, 34, 26); c.closePath(); fs(c, '#E8483C'); ell(c, 34, 24, 24, 7, -0.1); fs(c, '#C2362C'); circ(c, 0, -8, 5); fs(c, '#FFC93C', 3); shine(c, -14, -6, 6, 10, 0.3); },

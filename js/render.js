@@ -68,6 +68,22 @@ export class View {
         for (let i = 0; i < 18; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4, sp = 120 + Math.random() * 220; P({ type: 'dot', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.8, max: 0.8, color: i % 3 ? '#CFEFFF' : '#FFFFFF', r: 5, grav: 600 }); }
         this.shake = Math.max(this.shake, 6);
         break;
+      case 'impact': {
+        const col = { kokos: '#B07A45', lava: '#FF7A2A', mole: '#6B4A2A', crate: '#C98A4B' }[e.kind] || '#fff';
+        this.fx.push({ type: 'ring', x: e.x, y: e.y, r: 10, vr: 300, life: 0.35, max: 0.35, color: col, w: 10 });
+        burst(e.x, e.y, 14, 200, col, 6, 0.6, { grav: 300 });
+        burst(e.x, e.y, 6, 90, '#D9CFC0', 10, 0.8, { type: 'cloud' });
+        this.shake = Math.max(this.shake, 9);
+        this.kick(e.x, e.y, 0.5, 120);
+        break;
+      }
+      case 'splash':
+        for (let i = 0; i < 2; i++) this.fx.push({ type: 'ring', x: e.x, y: e.y + DEPTH * 0.6, r: 10, vr: 90 + i * 40, life: 1, max: 1, color: '#EAF7FF', w: 5, flat: 0.55 });
+        break;
+      case 'sink': case 'rise':
+        burst(e.x, e.y, 16, 160, '#EAF7FF', 6, 0.7, { grav: 300 });
+        this.shake = Math.max(this.shake, e.k === 'sink' ? 8 : 3);
+        break;
       case 'boom':
         this.fx.push({ type: 'ring', x: e.x, y: e.y, r: 10, vr: 380, life: 0.35, max: 0.35, color: '#FFB347', w: 12 });
         this.fx.push({ type: 'flash', x: e.x, y: e.y, r: 90, life: 0.18, max: 0.18, color: '#FFF3C4' });
@@ -199,6 +215,8 @@ export class View {
     const holes = s.ho || [];
     this.drawIsland(s, shapes, holes, theme, now);
     this.drawWorldObjects(s, now);
+    this.drawMapMechanic(s, shapes, now);
+    this.drawHazardsGround(s, shapes, now);
 
     // Blobs
     const players = s.p.filter(p => p.st !== 'ghost').sort((a, b) => a.y - b.y);
@@ -207,6 +225,7 @@ export class View {
     for (const p of players) this.drawBlobShadow(p);
     for (const p of players) this.drawBlob(p, s, myId, now);
 
+    this.drawHazardsAir(s, now);
     for (const f of this.fx) this.drawFx(f);
 
     // Stromausfall
@@ -510,6 +529,129 @@ export class View {
       ctx.beginPath(); ctx.arc(x, y, 95, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
       ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 95 * k, 0, TAU); ctx.stroke();
       drawIcon(ctx, 'bomb', x, y - 6, 34 + (1 - k) * 10 + (blink ? 2 : 0));
+    }
+  }
+
+  // ---------- Insel-Mechaniken ----------
+
+  // Dauerhafte Anzeigen: Drehpfeile (Drehkreuz, Karussell), Rutsch-Pfeile (Wippe), Kisten
+  drawMapMechanic(s, shapes, now) {
+    const { ctx } = this;
+    const mx = s.mx;
+    if (mx && mx.sp) {
+      // 6 Pfeile im Kreis um die Insel: blinken bei Warnung, leuchten im Turbo
+      const warnBlink = mx.sp === 1 && Math.sin(now * 14) < 0;
+      if (!warnBlink) {
+        const R = 365, n = 6, rot = now * (mx.sp === 2 ? 2.2 : 0.6) * mx.dir;
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (let i = 0; i < n; i++) {
+          const a0 = rot + i / n * TAU, a1 = a0 + 0.55 * mx.dir;
+          const col = mx.sp === 2 ? '#FF7A2A' : '#FFC93C';
+          ctx.beginPath(); ctx.arc(0, 0, R, Math.min(a0, a1), Math.max(a0, a1)); ctx.lineWidth = 15; ctx.strokeStyle = INK; ctx.stroke();
+          ctx.lineWidth = 8; ctx.strokeStyle = col; ctx.stroke();
+          const hx = Math.cos(a1) * R, hy = Math.sin(a1) * R, tx = -Math.sin(a1) * mx.dir, ty = Math.cos(a1) * mx.dir;
+          ctx.beginPath(); ctx.moveTo(hx + tx * 22, hy + ty * 22); ctx.lineTo(hx - ty * 16, hy + tx * 16); ctx.lineTo(hx + ty * 16, hy - tx * 16); ctx.closePath();
+          ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+    if (mx && mx.sl != null && shapes[0]) {
+      // Wippe: Pfeile auf dem Floß zeigen, wohin alle rutschen
+      const sh = shapes[0], k = Math.abs(mx.sl);
+      if (k > 0.15) {
+        ctx.save();
+        ctx.translate(sh.x, sh.y); ctx.rotate(sh.a);
+        ctx.globalAlpha = Math.min(0.85, k);
+        const dir = Math.sign(mx.sl), off = (now * 120 * dir) % 80;
+        ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        for (let x = -240; x <= 240; x += 80) {
+          const cx = x + off;
+          if (Math.abs(cx) > 250) continue;
+          for (const y of [-60, 60]) { ctx.beginPath(); ctx.moveTo(cx - dir * 14, y - 22); ctx.lineTo(cx + dir * 14, y); ctx.lineTo(cx - dir * 14, y + 22); ctx.stroke(); }
+        }
+        ctx.restore();
+      }
+    }
+    // Kisten
+    for (const [x, y, r, a] of s.kx || []) {
+      ctx.fillStyle = 'rgba(42,27,61,0.25)'; ctx.beginPath(); ctx.ellipse(x + 4, y + r * 0.7, r * 1.05, r * 0.4, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+      ctx.fillStyle = '#8A5A2E'; ctx.fillRect(-r, -r + 10, r * 2, r * 2); // Seitenwand
+      ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.strokeRect(-r, -r + 10, r * 2, r * 2);
+      ctx.restore();
+      ctx.save(); ctx.translate(x, y - 4); ctx.rotate(a);
+      drawIcon(ctx, 'kiste', 0, 0, r * 2.1);
+      ctx.restore();
+    }
+  }
+
+  // Warnungen am Boden: wachsender Schatten, bebende Erde, leuchtende Inselteile
+  drawHazardsGround(s, shapes, now) {
+    const { ctx } = this;
+    for (const [kind, x, y, r, p, i] of s.hz || []) {
+      const blink = Math.sin(now * (8 + p * 24)) > 0;
+      if (kind === 'sink') {
+        const sh = shapes[i];
+        if (!sh) continue;
+        ctx.save();
+        ctx.beginPath(); this.shapePath(sh, -6); ctx.clip();
+        ctx.fillStyle = `rgba(30,80,140,${0.1 + p * 0.35})`;
+        ctx.fillRect(sh.x - 400, sh.y - 400, 800, 800);
+        // Blasen steigen auf
+        for (let b = 0; b < 10; b++) {
+          const t = (now * 0.9 + hash(b * 3.3)) % 1, bx = sh.x + (hash(b * 5.1) - 0.5) * (sh.k === 'c' ? sh.r * 1.6 : sh.w * 0.9), by = sh.y + (hash(b * 7.9) - 0.5) * (sh.k === 'c' ? sh.r * 1.6 : sh.h * 0.9);
+          ctx.strokeStyle = `rgba(234,247,255,${(1 - t) * (0.4 + p * 0.6)})`; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(bx, by - t * 20, 4 + t * 6, 0, TAU); ctx.stroke();
+        }
+        ctx.restore();
+        ctx.beginPath(); this.shapePath(sh);
+        ctx.setLineDash([16, 10]); ctx.lineDashOffset = -now * 60;
+        ctx.lineWidth = 7; ctx.strokeStyle = blink ? '#FF6B6B' : '#FFF6E5'; ctx.stroke();
+        ctx.setLineDash([]); ctx.lineDashOffset = 0;
+        continue;
+      }
+      if (kind === 'mole') {
+        // Die Erde bebt: Hügel wächst, Krümel springen
+        const jx = Math.sin(now * 40) * 2 * p;
+        ctx.fillStyle = `rgba(90,60,30,${0.25 + p * 0.5})`;
+        ctx.beginPath(); ctx.ellipse(x + jx, y, r * (0.5 + p * 0.5), r * (0.35 + p * 0.35), 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = blink ? '#FF6B6B' : 'rgba(255,246,229,0.8)'; ctx.lineWidth = 4; ctx.setLineDash([10, 8]);
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+        for (let b = 0; b < 5; b++) { const t = (now * 2.5 + hash(b)) % 1, a = hash(b + 3) * TAU; ctx.fillStyle = '#6B4A2A'; ctx.beginPath(); ctx.arc(x + Math.cos(a) * r * 0.5 * t, y + Math.sin(a) * r * 0.3 * t - Math.sin(t * Math.PI) * 18, 4, 0, TAU); ctx.fill(); }
+        continue;
+      }
+      // Etwas fällt vom Himmel: Schatten wächst, roter Kreis zeigt die Wirkung
+      ctx.fillStyle = `rgba(42,27,61,${0.12 + p * 0.3})`;
+      ctx.beginPath(); ctx.ellipse(x, y, r * 0.35 * (0.4 + p), r * 0.2 * (0.4 + p), 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = blink ? 'rgba(255,107,107,0.22)' : 'rgba(255,107,107,0.1)';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,107,107,0.9)'; ctx.lineWidth = 4; ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, r * (1 - p), 0, TAU); ctx.stroke();
+    }
+  }
+
+  // Was vom Himmel fällt, wird über den Blobs gezeichnet
+  drawHazardsAir(s, now) {
+    const { ctx } = this;
+    for (const [kind, x, y, r, p] of s.hz || []) {
+      if (kind === 'kokos' || kind === 'crate') {
+        if (p < 0.55) continue;
+        const k = (p - 0.55) / 0.45, h = (1 - k) * 420;
+        ctx.save(); ctx.translate(x, y - h); ctx.rotate(now * 6);
+        drawIcon(ctx, kind === 'kokos' ? 'kokos' : 'kiste', 0, 0, kind === 'kokos' ? 40 : 64);
+        ctx.restore();
+      } else if (kind === 'lava') {
+        // Flugbahn aus dem Krater
+        if (p < 0.35) continue;
+        const k = (p - 0.35) / 0.65, bx = x * k, by = y * k - Math.sin(k * Math.PI) * 260;
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.atan2(y, x) + Math.PI / 2 * (k * 2 - 1) * 0.3);
+        drawIcon(ctx, 'lava', 0, 0, 44);
+        ctx.restore();
+        if (!this.low && Math.random() < 0.5) this.fx.push({ type: 'dot', x: bx, y: by, vx: 0, vy: 30, life: 0.4, max: 0.4, color: '#FFB347', r: 5 });
+      }
     }
   }
 
