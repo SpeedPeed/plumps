@@ -10,7 +10,7 @@
 //
 // Meldet Abstürze, Runden ohne Ende, durchschnittliche Rundendauer pro Modus und die
 // Siegverteilung nach Bot-Stärke. Exit-Code 1, wenn etwas schiefgeht.
-import { Game, MODES, MODE_IDS, MAPS, MAP_IDS, CARDS, CARD_IDS, BOT_LEVELS } from '../js/sim.js';
+import { Game, MODES, MODE_IDS, MAPS, MAP_IDS, CARDS, CARD_IDS, ITEMS, ITEM_IDS, BOT_LEVELS } from '../js/sim.js';
 import { T } from '../js/tuning.js';
 import { Rng, deriveSeed } from '../js/rng.js';
 
@@ -248,6 +248,44 @@ for (const n of [3, 4, 6]) {
     if (g.roundWinner === g.ms.boss) won++;
   }
   console.log(`  ${n} Spieler: ${(100 * won / (done || 1)).toFixed(0).padStart(3)} %   (Ø ${(time / (done || 1)).toFixed(1)} s)`);
+}
+
+// ---------- 2d) Power-ups: Was bringt welches? ----------
+// Runden „Letzter Blob“ mit 4 gleich starken Bots, in denen nur ein Power-up-Typ erscheint.
+// Gemessen: Wie oft gewinnt, wer es hatte, und wie viele Rauswürfe gelingen ihm in den
+// 8 s danach – im Vergleich zum Durchschnitt aller Power-ups.
+const ITEM_ROUNDS = QUICK ? 40 : 200;
+const allItems = [...ITEM_IDS];
+const itemRes = {};
+for (const it of allItems) {
+  ITEM_IDS.splice(0, ITEM_IDS.length, it);
+  let picks = 0, wins = 0, kos = 0;
+  for (let i = 0; i < ITEM_ROUNDS; i++) {
+    const g = new Game({ seed: deriveSeed(SEED ^ 0x17E5, i) });
+    for (let j = 0; j < 4; j++) { const p = g.addPlayer('b' + j, 'Bot' + j, true); p.botLevel = 1; }
+    g.startMatch();
+    g.mode = 'klassik'; g.map = MAP_IDS[i % MAP_IDS.length]; g.card = null; g.round = 1;
+    g.beginCountdown();
+    const got = new Map();   // Spieler -> Zeitpunkt des (letzten) Aufsammelns
+    let steps = 0;
+    while (g.phase !== 'roundEnd' && steps++ < 60 * 200) {
+      g.step(DT);
+      for (const e of g.drainEvents()) {
+        if (e.k === 'item') { picks++; got.set(e.id, g.t); }
+        if (e.k === 'ko' && got.has(e.id) && g.t - got.get(e.id) < 8) kos++;
+      }
+    }
+    if (g.roundWinner && got.has(g.roundWinner)) wins++;
+  }
+  itemRes[it] = { picks, wins, kos };
+}
+ITEM_IDS.splice(0, ITEM_IDS.length, ...allItems);
+const sum = Object.values(itemRes).reduce((a, r) => ({ picks: a.picks + r.picks, wins: a.wins + r.wins, kos: a.kos + r.kos }), { picks: 0, wins: 0, kos: 0 });
+console.log(`\nPower-ups (je ${ITEM_ROUNDS} Runden, nur dieses Power-up):  Sieg pro Aufsammeln · Rauswürfe danach  (1,0 = Durchschnitt)`);
+for (const it of allItems) {
+  const r = itemRes[it];
+  const w = (r.wins / (r.picks || 1)) / (sum.wins / sum.picks), k = (r.kos / (r.picks || 1)) / (sum.kos / sum.picks);
+  console.log(`${ITEMS[it].name.padEnd(16)} ${String(r.picks).padStart(5)} mal   ${w.toFixed(2).padStart(5)}   ${k.toFixed(2).padStart(5)}`);
 }
 
 // ---------- 3) Treffer-Zuordnung ----------

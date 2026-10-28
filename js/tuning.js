@@ -137,20 +137,22 @@ export const T = {
   ITEM_MAX: 2,            // gleichzeitig auf der Insel (ab 5 Spielern +1)
   ITEM_PICK_R: 16,
   GLOVE_TIME: 8,
-  GLOVE_MUL: 2.6,         // Faktor auf den Dash-Knockback, solange der Boxhandschuh wirkt
-  ANCHOR_TIME: 6,
+  GLOVE_MUL: 2.2,         // Faktor auf den Dash-Knockback, solange der Boxhandschuh wirkt
+  ANCHOR_TIME: 5,
   ANCHOR_MASS: 5,
   ANCHOR_ACC: 0.8,
-  ANCHOR_TAKE_DASH: 0.25, // Anteil Knockback, der beim Anker ankommt
+  ANCHOR_TAKE_DASH: 0.35, // Anteil Knockback, der beim Anker ankommt
   ANCHOR_TAKE_PUPS: 0.3,
   ANCHOR_TAKE_BLAST: 0.35,
   BIG_TIME: 7,
-  BIG_SIZE: 1.6,
-  SPEED_TIME: 7,
-  SPEED_ACC: 1.5,
-  SPEED_DASH_CD: 0.5,
+  BIG_SIZE: 1.5,
+  SPEED_TIME: 8,
+  SPEED_ACC: 1.6,
+  SPEED_DASH_CD: 0.45,
+  SPEED_DASH: 1.2,
   INVIS_TIME: 5,
-  BANANA_DROP_TIME: 2.4,
+  INVIS_ACC: 1.15,
+  BANANA_DROP_TIME: 1.6,
   BANANA_DROP_EVERY: 0.6,
   BANANA_LIFE: 25,
   BANANA_MAX: 20,
@@ -160,7 +162,7 @@ export const T = {
   SLIP_MIN_SPEED: 250,
   BOMB_FUSE: 1.6,
   BOMB_R: 95,
-  BOMB_F: 620,
+  BOMB_F: 700,
 
   // --- Chaos-Karten ---
   EIS_FRIC: 0.45,

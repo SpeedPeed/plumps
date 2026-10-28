@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'anchor', name: 'Anker', desc: '6 s lang bist du kaum wegzuschubsen.',
+  id: 'anchor', name: 'Anker', desc: '5 s lang bist du kaum wegzuschubsen.',
   apply(g, p) { p.pw.anchor = T.ANCHOR_TIME; },
   effects: {
     anchor: {
