@@ -111,6 +111,8 @@ if (selfKo) errors.push(`${selfKo} Rauswürfe wurden dem Opfer selbst gutgeschri
 const LINEUPS = [[0, 1, 2], [0, 0, 2, 2], [0, 1, 2, 0, 1, 2]];
 // expected = so viele Siege wären es, wenn alle gleich stark wären
 const wins = BOT_LEVELS.map(() => 0), expected = BOT_LEVELS.map(() => 0);
+const pause = { n: 0, total: 0, max: 0, idleMax: 0, idleTotal: 0 };   // Zeit zwischen zwei Runden
+const finaleRule = { matches: 0, ok: 0 };
 const mech = BOT_LEVELS.map(() => ({ players: 0, dashes: 0, charged: 0, braces: 0, counters: 0, breaks: 0, saves: 0, falls: 0 }));
 let rounds = 0;
 for (let i = 0; i < MATCHES; i++) {
@@ -121,9 +123,18 @@ for (let i = 0; i < MATCHES; i++) {
     lineup.forEach((lvl, j) => { const p = g.addPlayer('b' + j, 'Bot' + j, true); p.botLevel = lvl; });
     g.target = 5;
     g.startMatch();
-    let last = g.phase, steps = 0;
+    let last = g.phase, steps = 0, endAt = null, pickAt = null, lastFinale = false, lastWinner = null;
     while (g.phase !== 'matchEnd' && steps++ < 60 * 60 * 30) {
       g.step(DT);
+      const now = steps * DT;
+      if (g.phase === 'roundEnd' && last !== 'roundEnd') { endAt = now; lastFinale = g.finale; lastWinner = g.roundWinner; }
+      if (g.phase === 'pick' && last !== 'pick') pickAt = now;
+      if (g.phase === 'play' && last === 'countdown' && endAt != null) {
+        // ohne Spielen = Rundenende + Countdown; während der Kartenwahl schwabbeln alle frei
+        const d = now - endAt, idle = d - (now - T.COUNTDOWN - pickAt);
+        pause.n++; pause.total += d; pause.max = Math.max(pause.max, d);
+        pause.idleTotal += idle; pause.idleMax = Math.max(pause.idleMax, idle);
+      }
       for (const e of g.drainEvents()) {
         const lvl = g.players.get(e.id)?.botLevel;
         if (lvl == null) continue;
@@ -139,6 +150,10 @@ for (let i = 0; i < MATCHES; i++) {
       last = g.phase;
     }
     if (g.phase !== 'matchEnd') stuck.push(`Match ${i} (seed ${seed}) endet nicht`);
+    else {
+      finaleRule.matches++;
+      if (lastFinale && lastWinner === g.champion) finaleRule.ok++;
+    }
     for (const p of g.players.values()) {
       const m = mech[p.botLevel];
       m.players++; m.dashes += p.stats.dashes; m.counters += p.stats.counters; m.breaks += p.stats.breaks;
@@ -154,6 +169,12 @@ BOT_LEVELS.forEach((L, i) => {
   const ratio = expected[i] ? wins[i] / expected[i] : 0;
   console.log(`${L.name.padEnd(8)} ${String(wins[i]).padStart(6)} ${expected[i].toFixed(1).padStart(10)} ${ratio.toFixed(2).padStart(12)}`);
 });
+console.log(`\nZwischen zwei Runden: Ø ${(pause.total / (pause.n || 1)).toFixed(1)} s, höchstens ${pause.max.toFixed(1)} s`);
+console.log(`  davon ohne Spielen (Rundenende + Countdown): Ø ${(pause.idleTotal / (pause.n || 1)).toFixed(1)} s, höchstens ${pause.idleMax.toFixed(1)} s`);
+if (pause.idleMax > T.ROUND_END + T.COUNTDOWN + 0.2) errors.push(`Zu lange Pause ohne Spielen: ${pause.idleMax.toFixed(1)} s`);
+console.log(`Finale: ${finaleRule.ok} von ${finaleRule.matches} Matches wurden im Finale entschieden`);
+if (finaleRule.ok !== finaleRule.matches) errors.push('Ein Match wurde nicht im Finale entschieden');
+
 console.log('\nKampf pro Spieler und Match:');
 console.log('Stärke    Dashes  davon geladen  Stemmen  Konter  Durchbrüche  Rettungen  Stürze');
 BOT_LEVELS.forEach((L, i) => {
@@ -279,8 +300,41 @@ checks.push(
     return a.state === 'falling';
   }],
 );
+checks.push(
+  ['Wer mitten im Match beitritt, bekommt den Punktestand des Letzten', () => {
+    const g = new Game({ seed: 3 });
+    for (let i = 0; i < 3; i++) g.addPlayer('b' + i, 'B', true);
+    g.startMatch();
+    [...g.players.values()].forEach((p, i) => { p.score = 2 + i; });
+    const n = g.addPlayer('neu', 'Neu');
+    return n.score === 2 && n.state === 'ghost';
+  }],
+  ['Wer mitten im Match geht, wird durch einen Bot ersetzt', () => {
+    const g = new Game({ seed: 3 });
+    g.addPlayer('a', 'A'); g.addPlayer('b', 'B');
+    g.startMatch();
+    g.botify('a');
+    return g.players.get('a').bot && g.players.size === 2;
+  }],
+  ['Mit Matchball gibt es den letzten Punkt nur im Finale', () => {
+    const g = new Game({ seed: 3 });
+    const a = g.addPlayer('a', 'A'), b = g.addPlayer('b', 'B', true);
+    g.target = 3; g.startMatch();
+    a.score = 2; g.phase = 'play'; g.endRound(a);
+    const capped = a.score === 2;
+    g.afterRoundEnd();
+    const isFinale = g.finale && g.phase === 'pick' && g.mode === 'klassik' && !g.options;
+    g.beginCountdown(); g.phase = 'play'; g.endRound(a); g.afterRoundEnd();
+    return capped && isFinale && g.phase === 'matchEnd' && g.champion === 'a';
+  }],
+  ['Farbe lässt sich nur wählen, wenn sie frei ist', () => {
+    const g = new Game({ seed: 3 });
+    const a = g.addPlayer('a', 'A'), b = g.addPlayer('b', 'B');
+    return !g.setColor('a', b.ci) && g.setColor('a', 5) && a.ci === 5;
+  }],
+);
 let failedChecks = 0;
-console.log('\nTreffer-Zuordnung und Kampf-Mechaniken:');
+console.log('\nPrüfungen:');
 for (const [name, fn] of checks) {
   let ok = false;
   try { ok = fn(); } catch (e) { errors.push(`${name}: ${e.message}`); }

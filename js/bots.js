@@ -43,8 +43,8 @@ export function botThink(g, p, alive, dt) {
     const nearest = (list) => list.reduce((a, q) => (!a || dist(q) < dist(a) ? q : a), null);
     const foe = nearest(alive.filter(q => q !== p));
     const ctx = { foe, nearest, level: L, goal: foe, flee: null, attack: true, invert: false, potatoHolder: false };
-    g.M.botGoal?.(g, p, ctx);
-    g.C.botAdjust?.(g, p, ctx);
+    // Beim freien Schwabbeln vor der Runde gibt es weder Modus noch Karte
+    if (!g.free) { g.M.botGoal?.(g, p, ctx); g.C.botAdjust?.(g, p, ctx); }
     const item = nearest(g.items);
     if (item && dist(item) < 140 && rng.next() < 0.6) { ctx.goal = item; ctx.attack = false; }
 

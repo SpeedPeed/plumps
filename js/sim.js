@@ -21,6 +21,8 @@ export const HAT_COUNT = 14;    // Hüte 0..13 (0 = ohne), gezeichnet in js/art/
 export const EMOTE_COUNT = 5;
 
 const TAU = Math.PI * 2;
+// Auf diesen Inseln wird das Finale gespielt (nichts bewegt sich, alles gut lesbar)
+const FINALE_MAPS = ['rund', 'quadrat', 'knolle', 'stern'];
 const r1 = (v) => Math.round(v * 10) / 10;
 const validHat = (h) => ((h | 0) >= 0 && (h | 0) < HAT_COUNT ? h | 0 : 0);
 const newStats = () => ({ ko: 0, falls: 0, pups: 0, items: 0, dashes: 0, saves: 0, counters: 0, breaks: 0 });
@@ -47,6 +49,11 @@ export class Game {
     this.events = [];
     this.message = '';
     this.gridDirty = true;
+    this.tick = 0;            // zählt jeden Simulationsschritt (für die Wiederholung)
+    this.finale = false;
+    this.free = false;        // freies Herumschwabbeln während der Kartenwahl
+    this.fallRecs = [];       // letzte Stürze für die Wiederholung
+    this.replay = null;
     this.resetArena();
   }
 
@@ -85,6 +92,7 @@ export class Game {
       shrinkStart: this.M.shrinkStart ? this.M.shrinkStart() : Infinity, shrinkRate: T.SHRINK_RATE,
     };
     this.C.globalMods?.(this, gm);
+    if (this.finale) gm.shrinkStart = Math.min(gm.shrinkStart, T.FINALE_SHRINK);
     return gm;
   }
 
@@ -127,16 +135,22 @@ export class Game {
       dashCd: 0, dashT: 0, dashSeen: 0, pupsCd: 0,
       score: 0, lastHitBy: null, lastHitT: -99,
       lives: 0, m: 0, pw: {}, emo: null, emoT: 0,
-      stats: newStats(),
+      stats: newStats(), ready: bot,
       input: { mx: 0, my: 0, d: 0, u: 0, b: 0, h: 0 },
       botBrain: { cd: 0, wobble: this.rng.range(0, 6), goal: null, goalT: 0, releaseAt: null, seenDash: {} },
     };
     this.resetCombat(p);
     if (bot) p.hat = 1 + this.rng.int(HAT_COUNT - 1);
     this.players.set(id, p);
-    // Wer mitten in einer Runde dazukommt, ist bis zur nächsten Runde Geist.
+    // Wer mitten im Match dazukommt, startet fair mit dem Punktestand des Letzten
+    // und ist bis zur nächsten Runde Geist.
     if (this.phase === 'lobby') this.layoutPlayers();
-    else { const s = this.safeSpot(); p.gx = s.x; p.gy = s.y; }
+    else {
+      const others = [...this.players.values()].filter(q => q !== p);
+      p.score = others.length ? Math.min(...others.map(q => q.score)) : 0;
+      if (this.free) this.spawnAt(p, this.safeSpot(T.SPAWN_MARGIN));
+      else { const s = this.safeSpot(); p.gx = s.x; p.gy = s.y; }
+    }
     return p;
   }
 
@@ -144,7 +158,7 @@ export class Game {
     if (!this.players.has(id)) return;
     this.players.delete(id);
     if (this.cardOwner === id) this.cardOwner = null;
-    if (this.phase === 'cardPick' && this.picker === id) this.picker = null;
+    if (this.phase === 'pick' && this.picker === id) this.picker = null;
     this.M.onRemove?.(this, id);
     this.C.onRemove?.(this, id);
   }
@@ -167,6 +181,30 @@ export class Game {
     p.charging = false; p.chargeT = 0; p.chargeStart = 0; p.dashCharge = 0;
     p.braceT = 0; p.braceAge = 9; p.braceCd = 0;
     p.dazeT = 0; p.edgeAge = 0; p.wobbleAt = -9;
+  }
+
+  setReady(id, ready) {
+    const p = this.players.get(id);
+    if (p) p.ready = !!ready;
+  }
+
+  // Farbe selbst wählen, sofern sie noch frei ist (Farbe und Muster hängen zusammen)
+  setColor(id, ci) {
+    const p = this.players.get(id);
+    ci |= 0;
+    if (!p || ci < 0 || ci >= COLORS.length) return false;
+    if ([...this.players.values()].some(q => q !== p && q.ci === ci)) return false;
+    p.ci = ci; p.color = COLORS[ci];
+    return true;
+  }
+
+  // Wer mitten im Match geht, wird von einem Bot ersetzt, damit keine Lücke entsteht
+  botify(id) {
+    const p = this.players.get(id);
+    if (!p || p.bot) return;
+    p.bot = true; p.ready = true; p.botLevel = null;
+    p.input = { ...p.input, mx: 0, my: 0, h: 0 };
+    this.emit({ k: 'botified', id });
   }
 
   setHat(id, hat) {
@@ -193,6 +231,7 @@ export class Game {
     this.cardOwner = null;
     this.lastCard = null;
     this.champion = null;
+    this.finale = false;
     this.mode = 'klassik';
     this.map = 'rund';
     this.beginCountdown();
@@ -202,6 +241,9 @@ export class Game {
   backToLobby() {
     this.phase = 'lobby';
     this.card = null;
+    this.finale = false;
+    this.free = false;
+    for (const p of this.players.values()) p.ready = p.bot;
     this.map = 'rund';
     this.mode = 'klassik';
     this.resetArena();
@@ -220,9 +262,13 @@ export class Game {
 
   beginCountdown() {
     this.round++;
+    this.free = false;
     this.roundSeed = deriveSeed(this.seed, this.round);
     this.rng = new Rng(this.roundSeed);
     this.resetArena();
+    this.fallRecs = [];
+    this.replay = null;
+    if (this.finale) { this.k = T.FINALE_SCALE; this.shapes = poseShapes(this.mapDef, 0, this.k); this.prevShapes = this.shapes; }
     const max = Math.max(0, ...[...this.players.values()].map(p => p.score));
     if (max > 0) for (const p of this.players.values()) if (p.score === max) this.crowned.add(p.id);
     for (const p of this.players.values()) {
@@ -279,21 +325,26 @@ export class Game {
   }
 
   choose(playerId, idx) {
-    if (this.phase !== 'cardPick') return;
+    if (this.phase !== 'pick' || !this.options) return;
     if (this.picker && playerId !== this.picker) return;
     const id = this.options[idx];
     if (!id) return;
     this.card = id;
     this.lastCard = id;
     this.cardOwner = this.picker;
-    this.emit({ k: 'card', card: id });
-    this.phase = 'cardShow';
-    this.timer = T.CARD_SHOW;
+    this.emit({ k: 'card', card: id, by: this.picker });
+    this.beginCountdown();
+  }
+
+  // Punkte vergeben: Wer Matchball hat, kann nur im Finale den letzten Punkt holen
+  addPoint(p, finaleWin = false) {
+    const cap = finaleWin ? this.target : this.target - 1;
+    p.score = Math.max(p.score, Math.min(p.score + 1, cap));
   }
 
   endRound(winner) {
     if (winner) {
-      winner.score += 1;
+      this.addPoint(winner, this.finale && winner.score >= this.target - 1);
       this.message = `${winner.name} gewinnt die Runde!`;
       this.emit({ k: 'win', id: winner.id });
     } else {
@@ -304,21 +355,49 @@ export class Game {
     this.phase = 'roundEnd';
     this.timer = T.ROUND_END;
     this.M.onEnd?.(this);
+    this.replay = this.pickReplay();
+    if (this.replay) this.emit({ k: 'replay', ...this.replay });
+  }
+
+  // Welcher Sturz wird wiederholt? Bei „Letzter Blob“/„Drei Leben“ der entscheidende,
+  // in Modi mit Zeitlimit der letzte Rauswurf (wenn er nicht zu lange her ist).
+  pickReplay() {
+    const recs = this.fallRecs;
+    const rec = this.M.contenders ? recs[recs.length - 1] : [...recs].reverse().find(r => r.a);
+    if (!rec || this.tick - rec.tk > T.REPLAY_KEEP * 60) return null;
+    return {
+      from: rec.tk - Math.round(T.REPLAY_BEFORE * 60), to: rec.tk + Math.round(T.REPLAY_AFTER * 60),
+      a: rec.a, v: rec.v, x: Math.round(rec.x), y: Math.round(rec.y), speed: T.REPLAY_SPEED,
+    };
   }
 
   afterRoundEnd() {
     const players = [...this.players.values()];
     if (!players.length) { this.backToLobby(); return; }
-    const best = players.reduce((a, b) => (b.score > a.score ? b : a), players[0]);
-    const leaders = players.filter(p => p.score === best.score);
-    if (best.score >= this.target && leaders.length === 1) {
+    const champ = players.find(p => p.score >= this.target);
+    if (champ) {
       this.phase = 'matchEnd';
-      this.champion = best.id;
-      this.message = `${best.name} ist Inselkönig!`;
-      this.emit({ k: 'champion', id: best.id });
+      this.champion = champ.id;
+      this.message = `${champ.name} ist Inselkönig!`;
+      this.emit({ k: 'champion', id: champ.id });
       return;
     }
-    for (const p of players) if (p.score === this.target - 1) this.emit({ k: 'matchball', id: p.id });
+    // Finale: Wer Matchball hat, muss eine Runde „Letzter Blob“ gewinnen.
+    // Klappt das nicht, folgt erst wieder eine normale Runde.
+    const wasFinale = this.finale;
+    const matchball = players.filter(p => p.score >= this.target - 1);
+    this.finale = !wasFinale && matchball.length > 0;
+    if (this.finale) {
+      this.mode = 'klassik';
+      this.map = this.matchRng.pick(FINALE_MAPS.filter(m => m !== this.map));
+      this.options = null;
+      this.picker = null;
+      this.prepareFree();
+      this.phase = 'pick';
+      this.timer = T.FINALE_INTRO;
+      this.emit({ k: 'finale', ids: matchball.map(p => p.id) });
+      return;
+    }
     // Der Letzte im Gesamtstand darf das Chaos wählen (bei Gleichstand: wer zuerst rausflog)
     const low = Math.min(...players.map(p => p.score));
     const lows = players.filter(p => p.score === low);
@@ -327,27 +406,63 @@ export class Game {
     this.chooseNext();
     const pool = CARD_IDS.filter(c => c !== this.lastCard && (CARDS[c].fits?.(this.mode, MAPS[this.map]) ?? true));
     this.options = this.matchRng.shuffle(pool).slice(0, 3);
-    this.phase = 'cardPick';
+    this.prepareFree();
+    this.phase = 'pick';
     this.timer = T.CARD_PICK;
     this.botPickT = this.matchRng.range(T.BOT_PICK_MIN, T.BOT_PICK_MAX);
+  }
+
+  // Während der Kartenwahl stehen alle schon auf der neuen Insel und dürfen frei
+  // herumschwabbeln – ohne Wertung, ohne Karte, ohne Modus.
+  prepareFree() {
+    this.card = null;
+    this.cardOwner = null;
+    this.resetArena();
+    this.free = true;
+    this.layoutPlayers();
+  }
+
+  freeStep(dt) {
+    this.gm = this.globalMods();
+    this.t += dt;
+    const all = [...this.players.values()];
+    const alive = all.filter(p => p.state === 'alive');
+    this.prevShapes = this.shapes;
+    this.shapes = poseShapes(this.mapDef, this.t, this.k);
+    if (this.mapDef.moving) for (const p of alive) this.carry(p);
+    for (const p of all) if (p.bot) botThink(this, p, alive, dt);
+    for (const p of alive) this.movePlayer(p, dt, alive);
+    this.collide(alive);
+    for (const p of alive) if (p.state === 'alive') this.edgeCheck(p, dt);
+    for (const p of all) {
+      if (p.state === 'ghost') { this.spawnAt(p, this.safeSpot(T.SPAWN_MARGIN, alive)); continue; }
+      if (p.state !== 'falling') continue;
+      p.fallT += dt;
+      if (p.fallT < T.FREE_RESPAWN) { p.x += p.vx * dt * 0.3; p.y += p.vy * dt * 0.3; }
+      else this.spawnAt(p, this.safeSpot(T.SPAWN_MARGIN, alive));
+    }
   }
 
   fall(p, how) {
     if (p.state !== 'alive') return;
     p.state = 'falling';
     p.fallT = 0;
+    if (this.free) { this.emit({ k: 'plumps', x: p.x, y: p.y, id: p.id }); return; }
     p.stats.falls++;
     this.fallOrder.push(p.id);
     this.emit({ k: how === 'boom' ? 'boom' : 'plumps', x: p.x, y: p.y, id: p.id });
     this.C.onFall?.(this, p);
     this.M.onFall?.(this, p);
     const hitter = this.players.get(p.lastHitBy);
-    if (hitter && hitter !== p && this.t - p.lastHitT < T.KO_WINDOW) {
+    const credited = hitter && hitter !== p && this.t - p.lastHitT < T.KO_WINDOW;
+    this.fallRecs.push({ tk: this.tick, x: p.x, y: p.y, v: p.id, a: credited ? hitter.id : null });
+    if (this.fallRecs.length > 30) this.fallRecs.shift();
+    if (credited) {
       hitter.stats.ko++;
       this.emit({ k: 'ko', id: hitter.id, victim: p.id });
       if (this.crowned.has(p.id) && !this.regicided.has(p.id)) {
         this.regicided.add(p.id);
-        hitter.score += 1;
+        this.addPoint(hitter);
         this.emit({ k: 'regicide', id: hitter.id, victim: p.id });
       }
     }
@@ -363,6 +478,7 @@ export class Game {
   // ---------- Physik ----------
 
   step(dtReal) {
+    this.tick++;
     if (this.phase === 'lobby') return;
     for (const p of this.players.values()) if (p.emoT > 0) p.emoT -= dtReal;
     if (this.phase === 'countdown') {
@@ -379,16 +495,13 @@ export class Game {
       if (this.timer <= 0) this.afterRoundEnd();
       return;
     }
-    if (this.phase === 'cardPick') {
+    if (this.phase === 'pick') {
+      this.freeStep(dtReal);
       this.timer -= dtReal;
+      if (!this.options) { if (this.timer <= 0) this.beginCountdown(); return; } // Finale-Ansage
       const pk = this.players.get(this.picker);
       if (!pk || pk.bot) { this.botPickT -= dtReal; if (this.botPickT <= 0) this.choose(this.picker, this.matchRng.int(3)); }
-      if (this.phase === 'cardPick' && this.timer <= 0) this.choose(this.picker, this.matchRng.int(3));
-      return;
-    }
-    if (this.phase === 'cardShow') {
-      this.timer -= dtReal;
-      if (this.timer <= 0) this.beginCountdown();
+      if (this.phase === 'pick' && this.timer <= 0) this.choose(this.picker, this.matchRng.int(3));
       return;
     }
     if (this.phase !== 'play') return;
@@ -463,7 +576,7 @@ export class Game {
   // EDGE_TIME Sekunden, um sich zurückzuretten. Wer weit drüber ist, fällt sofort.
   edgeCheck(p, dt) {
     if (onGround(this.shapes, this.holes, p.x, p.y)) {
-      if (p.edgeAge > 0.08) { p.stats.saves++; this.emit({ k: 'save', id: p.id, x: p.x, y: p.y }); }
+      if (p.edgeAge > 0.08) { if (!this.free) p.stats.saves++; this.emit({ k: 'save', id: p.id, x: p.x, y: p.y }); }
       p.edgeAge = 0;
       return;
     }
@@ -537,7 +650,7 @@ export class Game {
     p.dashT = lerp(T.DASH_T, T.DASH_T_MAX, c);
     p.dashCharge = c;
     p.dashCd = pm.dashCd * lerp(1, T.DASH_CD_CHARGED, c);
-    p.stats.dashes++;
+    if (!this.free) p.stats.dashes++;
     this.emit({ k: 'dash', id: p.id, x: p.x, y: p.y, c: r1(c) });
   }
 
@@ -553,7 +666,7 @@ export class Game {
         Y.braceT = 0; Y.dazeT = T.BREAK_DAZE; Y.charging = false;
         const f = base * T.BREAK_MUL * this.playerMods(Y).takeDash;
         Y.vx += nx * f; Y.vy += ny * f;
-        X.stats.breaks++;
+        if (!this.free) X.stats.breaks++;
         this.emit({ k: 'break', id: X.id, victim: Y.id, x: mx, y: my });
         this.hitstop = Math.max(this.hitstop, T.HITSTOP_MAX);
         return 'break';
@@ -566,7 +679,7 @@ export class Game {
         Y.vx *= 0.2; Y.vy *= 0.2;
         Y.braceCd = Math.min(Y.braceCd, T.BRACE_CD_COUNTER);
         this.credit(X, Y.id);
-        Y.stats.counters++;
+        if (!this.free) Y.stats.counters++;
         this.emit({ k: 'counter', id: Y.id, by: X.id, x: mx, y: my });
         this.hitstop = Math.max(this.hitstop, T.HITSTOP_MAX);
         return 'counter';
@@ -648,8 +761,10 @@ export class Game {
         if (bDash) countered = this.dashHit(b, a, pb, -nx, -ny, vb) === 'counter' || countered;
         if (attacker && !countered) this.credit(attacker === a ? b : a, attacker.id);
         if (-rv > T.BOING_SPEED || aDash || bDash) this.emit({ k: 'boing', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, p: Math.min(1, -rv / 600) });
-        this.C.onCollide?.(this, a, b, attacker);
-        this.M.onCollide?.(this, a, b, attacker);
+        if (!this.free) {
+          this.C.onCollide?.(this, a, b, attacker);
+          this.M.onCollide?.(this, a, b, attacker);
+        }
       }
     }
   }
@@ -798,7 +913,9 @@ export class Game {
       mo: this.mode, mp: this.map, tl: time ? Math.max(0, r1(time - this.t)) : null,
       ar: packShapes(this.shapes), ho: this.holes.map(h => [h.x, h.y, h.r]), sk: this.k < 1 ? 1 : 0,
       c: this.card, co: this.cardOwner, tg: this.target, msg: this.message,
-      pk: this.picker, op: this.phase === 'cardPick' || this.phase === 'cardShow' ? this.options : null,
+      pk: this.picker, op: this.phase === 'pick' ? this.options : null,
+      tk: this.tick, fi: this.finale ? 1 : 0, rp: this.phase === 'roundEnd' ? this.replay : null,
+      set: { tg: this.target, bl: this.botLevel, mm: this.modeMix ? 1 : 0 },
       po: null, pt: 0, ig: null, zn: null, cn: [],
       cr: [...this.crowned], ch: this.champion, rw: this.roundWinner,
       bm: this.bombs.map(b => [r1(b.x), r1(b.y), r1(b.t / b.max)]),
@@ -821,13 +938,16 @@ export class Game {
         bc: r1(p.braceCd / T.BRACE_CD),
         wb: p.edgeAge > 0 ? 1 : 0, dz: p.dazeT > 0 ? 1 : 0,
         dk: p.dashT > 0 ? r1(p.dashCharge) : 0,
+        rd: p.ready ? 1 : 0,
       })),
       duel: this.duel || null, fin: this.endDelay > 0 ? 1 : 0,
       ev: events || [],
     };
     // Zwischen den Runden ist der nächste Modus schon gewählt, aber noch nicht aufgebaut
-    if (this.cs.id === this.card) this.C.snapshot?.(this, s);
-    if (this.ms.id === this.mode) this.M.snapshot?.(this, s, withGrid);
+    if (this.phase !== 'pick') {
+      if (this.cs.id === this.card) this.C.snapshot?.(this, s);
+      if (this.ms.id === this.mode) this.M.snapshot?.(this, s, withGrid);
+    }
     return s;
   }
 }

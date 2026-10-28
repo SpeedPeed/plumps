@@ -80,13 +80,20 @@ export const T = {
   PUPS_F: 520,
   PUPS_FIRST_CD: 1.5,     // Abklingzeit direkt nach dem Geistwerden
 
-  // --- Ablauf ---
-  COUNTDOWN: 3,
-  ROUND_END: 3,
-  CARD_PICK: 12,
-  CARD_SHOW: 2.5,
-  BOT_PICK_MIN: 1.5,
-  BOT_PICK_MAX: 3,
+  // --- Ablauf (Ziel: höchstens ~8 s ohne Spielen zwischen zwei Runden) ---
+  COUNTDOWN: 2,
+  ROUND_END: 3.2,         // Rundenende, währenddessen läuft die Wiederholung des Rauswurfs
+  CARD_PICK: 6,           // Kartenwahl; alle schwabbeln dabei schon frei auf der neuen Insel
+  BOT_PICK_MIN: 1,
+  BOT_PICK_MAX: 2,
+  FREE_RESPAWN: 0.9,      // wer beim Herumschwabbeln ins Wasser fällt, ist so schnell zurück
+  REPLAY_BEFORE: 1.2,     // Wiederholung: so viel vor dem Rauswurf …
+  REPLAY_AFTER: 0.45,     // … und so viel danach
+  REPLAY_SPEED: 0.55,     // Zeitlupe der Wiederholung
+  REPLAY_KEEP: 10,        // ältere Rauswürfe werden nicht wiederholt
+  FINALE_INTRO: 3.5,      // Ansage vor dem Finale (statt Kartenwahl)
+  FINALE_SCALE: 0.8,      // das Finale spielt auf einer kleineren Insel …
+  FINALE_SHRINK: 12,      // … die früher schrumpft
   EMOTE_TIME: 2.2,
 
   // --- Power-ups ---
