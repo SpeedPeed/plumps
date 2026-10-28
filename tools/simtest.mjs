@@ -111,6 +111,7 @@ if (selfKo) errors.push(`${selfKo} Rauswürfe wurden dem Opfer selbst gutgeschri
 const LINEUPS = [[0, 1, 2], [0, 0, 2, 2], [0, 1, 2, 0, 1, 2]];
 // expected = so viele Siege wären es, wenn alle gleich stark wären
 const wins = BOT_LEVELS.map(() => 0), expected = BOT_LEVELS.map(() => 0);
+const mech = BOT_LEVELS.map(() => ({ players: 0, dashes: 0, charged: 0, braces: 0, counters: 0, breaks: 0, saves: 0, falls: 0 }));
 let rounds = 0;
 for (let i = 0; i < MATCHES; i++) {
   const lineup = LINEUPS[i % LINEUPS.length];
@@ -123,7 +124,12 @@ for (let i = 0; i < MATCHES; i++) {
     let last = g.phase, steps = 0;
     while (g.phase !== 'matchEnd' && steps++ < 60 * 60 * 30) {
       g.step(DT);
-      g.drainEvents();
+      for (const e of g.drainEvents()) {
+        const lvl = g.players.get(e.id)?.botLevel;
+        if (lvl == null) continue;
+        if (e.k === 'dash' && e.c > 0.5) mech[lvl].charged++;
+        if (e.k === 'brace') mech[lvl].braces++;
+      }
       if (g.phase === 'roundEnd' && last !== 'roundEnd') {
         rounds++;
         lineup.forEach(l => { expected[l] += 1 / lineup.length; });
@@ -133,6 +139,11 @@ for (let i = 0; i < MATCHES; i++) {
       last = g.phase;
     }
     if (g.phase !== 'matchEnd') stuck.push(`Match ${i} (seed ${seed}) endet nicht`);
+    for (const p of g.players.values()) {
+      const m = mech[p.botLevel];
+      m.players++; m.dashes += p.stats.dashes; m.counters += p.stats.counters; m.breaks += p.stats.breaks;
+      m.saves += p.stats.saves; m.falls += p.stats.falls;
+    }
   } catch (e) {
     errors.push(`Match ${i} (seed ${seed}): ${e.stack.split('\n').slice(0, 3).join(' | ')}`);
   }
@@ -142,6 +153,12 @@ console.log('Stärke    Siege   erwartet   Verhältnis   (1,0 = so gut wie der D
 BOT_LEVELS.forEach((L, i) => {
   const ratio = expected[i] ? wins[i] / expected[i] : 0;
   console.log(`${L.name.padEnd(8)} ${String(wins[i]).padStart(6)} ${expected[i].toFixed(1).padStart(10)} ${ratio.toFixed(2).padStart(12)}`);
+});
+console.log('\nKampf pro Spieler und Match:');
+console.log('Stärke    Dashes  davon geladen  Stemmen  Konter  Durchbrüche  Rettungen  Stürze');
+BOT_LEVELS.forEach((L, i) => {
+  const m = mech[i], n = m.players || 1, f = (v) => (v / n).toFixed(1).padStart(7);
+  console.log(`${L.name.padEnd(8)} ${f(m.dashes)} ${f(m.charged)}       ${f(m.braces)} ${f(m.counters)}  ${f(m.breaks)}     ${f(m.saves)}  ${f(m.falls)}`);
 });
 const strong = expected[2] ? wins[2] / expected[2] : 0, weak = expected[0] ? wins[0] / expected[0] : 0;
 if (rounds && strong <= weak) errors.push(`Schwere Bots (${strong.toFixed(2)}) gewinnen nicht öfter als leichte (${weak.toFixed(2)})`);
@@ -188,8 +205,82 @@ const checks = [
     return credited && a.lastHitBy === null;
   }],
 ];
+// Spieler a steht links, b rechts, beide mitten auf der Rundinsel; Eingaben laufen über setInput wie beim echten Spiel
+function arena() {
+  const g = new Game({ seed: 9 });
+  const a = g.addPlayer('a', 'A'), b = g.addPlayer('b', 'B');
+  g.startMatch(); g.mode = 'klassik'; g.map = 'rund'; g.card = null; g.round = 0; g.beginCountdown();
+  g.phase = 'play'; g.items = []; g.itemT = 99;
+  Object.assign(a, { x: -60, y: 0, vx: 0, vy: 0, fx: 1, fy: 0 });
+  Object.assign(b, { x: 0, y: 0, vx: 0, vy: 0, fx: -1, fy: 0 });
+  const input = (p, ch) => g.setInput(p.id, { ...p.input, ...ch });
+  const run = (sec) => { for (let i = 0; i < Math.round(sec * 60); i++) g.step(DT); };
+  return { g, a, b, input, run };
+}
+function dashEvents(g) { return g.drainEvents().filter(e => e.k === 'dash'); }
+checks.push(
+  ['Antippen ergibt einen ungeladenen Dash', () => {
+    const { g, a, input, run } = arena();
+    input(a, { d: a.input.d + 1, u: a.input.u + 1 }); run(0.05);
+    const ev = dashEvents(g);
+    return ev.length === 1 && ev[0].c === 0;
+  }],
+  ['Halten lädt den Dash auf (voll nach DASH_CHARGE)', () => {
+    const { g, a, input, run } = arena();
+    input(a, { d: a.input.d + 1, h: 1 }); run(T.DASH_CHARGE + 0.05);
+    const during = a.charging;
+    input(a, { u: a.input.u + 1, h: 0 }); run(0.02);
+    const ev = dashEvents(g);
+    return during && ev.length === 1 && ev[0].c === 1;
+  }],
+  ['Perfektes Stemmen kontert einen Dash und schreibt dem Stemmer gut', () => {
+    const { g, a, b, input, run } = arena();
+    input(b, { b: b.input.b + 1 }); run(0.02);
+    a.x = -50; input(a, { d: a.input.d + 1, u: a.input.u + 1 }); run(0.08);
+    const ev = g.drainEvents();
+    return ev.some(e => e.k === 'counter') && a.vx < 0 && a.lastHitBy === 'b' && a.dazeT > 0;
+  }],
+  ['Spätes Stemmen dämpft den Knockback', () => {
+    const hit = (braceEarly) => {
+      const { g, a, b, input, run } = arena();
+      if (braceEarly) { input(b, { b: b.input.b + 1 }); run(T.BRACE_PERFECT + 0.03); }
+      a.x = -46; input(a, { d: a.input.d + 1, u: a.input.u + 1 }); run(0.05);
+      return Math.hypot(b.vx, b.vy);
+    };
+    return hit(true) < hit(false) * 0.6;
+  }],
+  ['Voll geladener Dash bricht durchs Stemmen', () => {
+    const { g, a, b, input, run } = arena();
+    a.x = -200;
+    input(a, { d: a.input.d + 1, h: 1 }); run(T.DASH_CHARGE + 0.05);
+    input(b, { b: b.input.b + 1 }); run(0.01);
+    input(a, { u: a.input.u + 1, h: 0 }); run(0.3);
+    return g.drainEvents().some(e => e.k === 'break') && b.dazeT >= 0;
+  }],
+  ['Knapp über der Kante: Gegensteuern rettet', () => {
+    const { g, a, input, run } = arena();
+    Object.assign(a, { x: 300 + a.r * 0.5, y: 0, vx: 0 });
+    input(a, { mx: -1, my: 0 }); run(T.EDGE_TIME + 0.1);
+    const ev = g.drainEvents();
+    return a.state === 'alive' && ev.some(e => e.k === 'wobble') && ev.some(e => e.k === 'save');
+  }],
+  ['Knapp über der Kante ohne Gegensteuern: Plumps nach EDGE_TIME', () => {
+    const { g, a, run } = arena();
+    Object.assign(a, { x: 300 + a.r * 0.5, y: 0, vx: 0 });
+    run(T.EDGE_TIME * 0.5);
+    const still = a.state === 'alive';
+    run(T.EDGE_TIME);
+    return still && a.state !== 'alive';
+  }],
+  ['Weit über der Kante: sofort Plumps', () => {
+    const { g, a, run } = arena();
+    Object.assign(a, { x: 300 + a.r * 1.5, y: 0, vx: 0 });
+    run(0.02);
+    return a.state === 'falling';
+  }],
+);
 let failedChecks = 0;
-console.log('\nTreffer-Zuordnung:');
+console.log('\nTreffer-Zuordnung und Kampf-Mechaniken:');
 for (const [name, fn] of checks) {
   let ok = false;
   try { ok = fn(); } catch (e) { errors.push(`${name}: ${e.message}`); }

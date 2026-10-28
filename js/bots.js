@@ -1,26 +1,42 @@
 // Bots. Jeder Bot entscheidet nur alle paar Zehntelsekunden neu (Reaktionszeit),
 // dazwischen bleibt die alte Eingabe stehen. Modi und Karten setzen über
-// botGoal/botAdjust das Ziel; die Vorsicht am Rand ist für alle gleich.
+// botGoal/botAdjust das Ziel; Vorsicht am Rand, Stemmen und Kantenrettung sind für alle gleich.
+// Die Stärke entscheidet, wie oft und wie gut ein Bot auflädt, stemmt und sich rettet.
 import { T, BOT_LEVELS } from './tuning.js';
 import { onGround } from './geometry.js';
 
 const TAU = Math.PI * 2;
+
+// Tasten wie ein Mensch drücken: Zähler hochzählen
+const press = (p) => { p.input = { ...p.input, d: p.input.d + 1, h: 1 }; };
+const release = (p) => { p.input = { ...p.input, u: p.input.u + 1, h: 0 }; };
+const tap = (p) => { p.input = { ...p.input, d: p.input.d + 1, u: p.input.u + 1, h: 0 }; };
+const brace = (p) => { p.input = { ...p.input, b: p.input.b + 1 }; };
+const steer = (p, mx, my) => { p.input = { ...p.input, mx, my }; };
 
 export function botThink(g, p, alive, dt) {
   const L = BOT_LEVELS[p.botLevel ?? g.botLevel] || BOT_LEVELS[0];
   const b = p.botBrain;
   const rng = g.rng;
   b.wobble += dt * 3;
+
+  if (p.state === 'alive') {
+    // Losgelassen wird zur geplanten Zeit, unabhängig von der Reaktionszeit
+    if (b.releaseAt != null && g.t >= b.releaseAt) { release(p); b.releaseAt = null; }
+    reactToDashes(g, p, alive, L);
+    rescueFromEdge(g, p, L);
+  }
+
   b.cd -= dt;
   if (b.cd > 0) return;
   b.cd = L.react * rng.range(0.7, 1.3);
-  let mx = 0, my = 0, dash = false;
+  let mx = 0, my = 0, attackFoe = null;
 
   if (p.state === 'ghost') {
     const target = alive.length ? alive[Math.floor((b.wobble / 5) % alive.length)] : null;
     if (target) {
       mx = target.x - p.gx; my = target.y - p.gy;
-      if (Math.hypot(mx, my) < 80 && rng.next() < L.pups) dash = true;
+      if (Math.hypot(mx, my) < 80 && rng.next() < L.pups) tap(p);
     }
   } else if (p.state === 'alive') {
     const dist = (q) => Math.hypot(q.x - p.x, q.y - p.y);
@@ -32,6 +48,7 @@ export function botThink(g, p, alive, dt) {
     const item = nearest(g.items);
     if (item && dist(item) < 140 && rng.next() < 0.6) { ctx.goal = item; ctx.attack = false; }
 
+    let dash = false;
     if (ctx.flee) {
       const f = ctx.flee, dx = p.x - f.x, dy = p.y - f.y, d = Math.hypot(dx, dy) || 1;
       mx = dx / d - p.x / 400; my = dy / d - p.y / 400;
@@ -39,7 +56,7 @@ export function botThink(g, p, alive, dt) {
       const goal = ctx.goal, err = L.aimErr;
       mx = goal.x + rng.range(-err, err) - p.x; my = goal.y + rng.range(-err, err) - p.y;
       const d = dist(goal);
-      if (ctx.attack && goal === foe && d < L.range + p.r && rng.next() < L.dash) dash = true;
+      if (ctx.attack && goal === foe && d < L.range + p.r && rng.next() < L.dash) { dash = true; attackFoe = foe; }
       if (ctx.potatoHolder && d < 120) dash = rng.next() < 0.3;
     }
     for (const bo of g.bombs) {
@@ -53,10 +70,59 @@ export function botThink(g, p, alive, dt) {
     if (rng.next() < L.care) [mx, my, dash] = avoidEdge(g, p, L, mx, my, dash);
     mx *= L.speed; my *= L.speed;
     if (ctx.invert) { mx = -mx; my = -my; }
+
+    if (dash && !p.charging && b.releaseAt == null && p.dashCd <= 0 && p.braceT <= 0) {
+      // Wer stemmt, wird (von guten Bots) mit vollem Dash durchbrochen; sonst je nach Lust aufladen
+      const vsBrace = attackFoe && attackFoe.braceT > 0 && (p.botLevel ?? g.botLevel) > 0;
+      if (vsBrace || rng.next() < L.charge) {
+        press(p);
+        b.releaseAt = g.t + (vsBrace ? T.DASH_CHARGE + 0.05 : rng.range(L.hold[0], L.hold[1]));
+      } else tap(p);
+    }
   }
   const m = Math.hypot(mx, my);
   if (m > 1) { mx /= m; my /= m; }
-  p.input = { mx, my, d: p.input.d + (dash ? 1 : 0) };
+  steer(p, mx, my);
+}
+
+// Kommt ein Dash auf mich zu? Dann (je nach Stärke) stemmen – gute Bots mit gutem Timing.
+function reactToDashes(g, p, alive, L) {
+  const b = p.botBrain;
+  if (p.braceCd > 0 || p.charging || p.dazeT > 0) return;
+  for (const q of alive) {
+    if (q === p || q.dashT <= 0) continue;
+    const key = q.id + ':' + q.stats.dashes;
+    if (b.seenDash[q.id] === key) continue;
+    const dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy) || 1;
+    const approach = (q.vx * dx + q.vy * dy) / d;
+    if (approach < 150 || d > 200) continue;
+    const tti = Math.max(0, d - p.r - q.r) / approach;
+    if (tti > L.braceAt) continue;
+    b.seenDash[q.id] = key;               // pro Dash nur einmal entscheiden
+    if (g.rng.next() < L.brace) { brace(p); return; }
+  }
+}
+
+// An der Kante: zurück auf die Insel steuern, gute Bots dashen sich zurück
+function rescueFromEdge(g, p, L) {
+  const b = p.botBrain;
+  if (p.edgeAge <= 0) { b.edgeHandled = false; return; }
+  if (b.edgeHandled) return;
+  b.edgeHandled = true;
+  if (g.rng.next() >= L.save) return;
+  let best = null;
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * TAU, dx = Math.cos(a), dy = Math.sin(a);
+    if (onGround(g.shapes, g.holes, p.x + dx * 40, p.y + dy * 40, 10)) {
+      const s = -(dx * p.vx + dy * p.vy);  // möglichst gegen den Schwung
+      if (!best || s > best[2]) best = [dx, dy, s];
+    }
+  }
+  if (!best) return;
+  steer(p, best[0], best[1]);
+  b.cd = Math.max(b.cd, 0.3);               // die Rettung nicht gleich wieder überschreiben
+  // Die Blickrichtung folgt im selben Schritt der Eingabe, der Dash geht also Richtung Insel
+  if (p.dashCd <= 0 && !p.charging && g.rng.next() < L.save * 0.6) tap(p);
 }
 
 // Vorsicht am Rand: wohin trägt uns der Schwung, und ist da noch Boden?
