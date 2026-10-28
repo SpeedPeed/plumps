@@ -160,6 +160,20 @@ const ICONS = {
   wackel(c) { c.beginPath(); c.moveTo(-36, 30); c.lineTo(-26, -18); c.quadraticCurveTo(0, -30, 26, -18); c.lineTo(36, 30); c.closePath(); fs(c, '#FFB347'); c.beginPath(); c.moveTo(-27, -14); c.quadraticCurveTo(0, -26, 27, -14); c.quadraticCurveTo(28, 0, 18, -2); c.quadraticCurveTo(10, 8, 2, -4); c.quadraticCurveTo(-10, 6, -18, -4); c.quadraticCurveTo(-28, 2, -27, -14); fs(c, '#8A4A2A'); ell(c, 0, 32, 46, 8); fs(c, '#fff'); shine(c, -14, 4, 6, 10, 0.2); for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * 42, -6); c.quadraticCurveTo(s * 48, 4, s * 42, 14); st(c, 4, '#A9A3C9'); } },
 
   // ----- Emotes -----
+  cool(c) { blobBody(c, 0, 0, 40, '#4DB3EA'); rrect(c, -34, -16, 30, 18, 7); fs(c, '#1E1B3A', 4); rrect(c, 4, -16, 30, 18, 7); fs(c, '#1E1B3A', 4); c.beginPath(); c.moveTo(-4, -10); c.lineTo(4, -10); st(c, 5); c.beginPath(); c.moveTo(-14, 16); c.quadraticCurveTo(4, 26, 18, 12); st(c, 5); },
+  liebe(c) { blobBody(c, 0, 0, 40, '#FF9FB0'); for (const s of [-1, 1]) { heartPath(c, s * 15, -8, 10); fs(c, '#E8483C', 4); } c.beginPath(); c.moveTo(-14, 14); c.quadraticCurveTo(0, 30, 14, 14); st(c, 5); },
+  gaehn(c) { blobBody(c, 0, 0, 40, '#B5D86B'); for (const s of [-1, 1]) { c.beginPath(); c.arc(s * 14, -8, 8, 0.2, Math.PI - 0.2); st(c, 5); } ell(c, 0, 18, 11, 13); fs(c, '#7A2E3A', 5); c.fillStyle = INK; c.font = 'bold 22px Lilita One, sans-serif'; c.fillText('z', 26, -26); c.font = 'bold 16px Lilita One, sans-serif'; c.fillText('z', 38, -40); },
+  wolke(c) { for (const [x, y, r] of [[-18, 0, 20], [4, -12, 24], [24, 2, 18], [0, 8, 22]]) { circ(c, x, y, r); fs(c, '#A9A3C9'); } for (const [x, y, r] of [[-18, 0, 20], [4, -12, 24], [24, 2, 18], [0, 8, 22]]) { circ(c, x, y, r - 4); c.fillStyle = '#A9A3C9'; c.fill(); } for (const x of [-16, 0, 16]) { c.beginPath(); c.moveTo(x, 34); c.lineTo(x - 5, 46); st(c, 5, '#4DB3EA'); } },
+  // Spuren (Vorschau im Profil)
+  funken(c) { for (const [x, y, r] of [[-20, 10, 14], [8, -14, 10], [22, 16, 8]]) { star(c, x, y, r, r * 0.4, 4); fs(c, '#FFE066', 4); } },
+  blasen(c) { for (const [x, y, r] of [[-16, 12, 16], [12, -10, 12], [20, 20, 8]]) { circ(c, x, y, r); c.fillStyle = 'rgba(158,216,245,0.5)'; c.fill(); st(c, 4, '#4DB3EA'); shine(c, x - r * 0.3, y - r * 0.35, r * 0.3, r * 0.2); } },
+  herzen(c) { heartPath(c, -12, 6, 16); fs(c, '#FF5FA2', 5); heartPath(c, 20, -16, 10); fs(c, '#FF9FB0', 4); },
+  regenbogen(c) { ['#E8483C', '#FF9F43', '#FFE066', '#5ED6A0', '#4DB3EA', '#A06CD5'].forEach((col, i) => { c.beginPath(); c.arc(0, 24, 42 - i * 6, Math.PI, TAU); st(c, 6, col); }); },
+  sterne(c) { star(c, -10, 4, 24, 10); fs(c, '#FFE066'); star(c, 24, -20, 11, 5); fs(c, '#FFFFFF', 4); },
+  konfetti(c) { [[-24, -10, '#E8483C', 0.4], [0, 14, '#4DB3EA', -0.6], [20, -16, '#FFE066', 1], [-6, -26, '#5ED6A0', -0.2], [26, 12, '#CC79A7', 0.7]].forEach(([x, y, col, a]) => { c.save(); c.translate(x, y); c.rotate(a); rrect(c, -9, -5, 18, 10, 2); fs(c, col, 3); c.restore(); }); },
+  keinespur(c) { circ(c, 0, 0, 30); st(c, 6, '#A9A3C9'); c.beginPath(); c.moveTo(-20, 20); c.lineTo(20, -20); st(c, 6, '#A9A3C9'); },
+  kamera(c) { rrect(c, -40, -22, 80, 54, 10); fs(c, '#5B6B8C'); rrect(c, -16, -34, 32, 14, 4); fs(c, '#5B6B8C'); circ(c, 0, 5, 18); fs(c, '#9ED8F5'); circ(c, 0, 5, 8); c.fillStyle = INK; c.fill(); circ(c, 28, -12, 4); c.fillStyle = '#FFE066'; c.fill(); },
+  schloss(c) { c.beginPath(); c.arc(0, -10, 18, Math.PI, 0); st(c, 9); rrect(c, -26, -10, 52, 42, 8); fs(c, '#FFC93C'); circ(c, 0, 8, 6); c.fillStyle = INK; c.fill(); },
   lachen(c) { blobBody(c, 0, 0, 40, '#F4D54A'); for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * 22, -10); c.lineTo(s * 12, -4); c.lineTo(s * 22, 2); st(c, 5); } c.beginPath(); c.moveTo(-20, 10); c.quadraticCurveTo(0, 40, 20, 10); c.closePath(); fs(c, '#7A2E3A', 5); for (const s of [-1, 1]) { ell(c, s * 34, 4, 5, 8); fs(c, '#9ED8F5', 3); } },
   schreck(c) { blobBody(c, 0, 0, 40, '#B9C4FF'); for (const s of [-1, 1]) { circ(c, s * 14, -8, 11); fs(c, '#fff', 4); circ(c, s * 14, -8, 3); c.fillStyle = INK; c.fill(); } ell(c, 0, 18, 9, 12); fs(c, '#7A2E3A', 5); },
   wut(c) { blobBody(c, 0, 0, 40, '#FF6B6B'); for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * 26, -22); c.lineTo(s * 6, -12); st(c, 6); circ(c, s * 14, -4, 5); c.fillStyle = INK; c.fill(); } c.beginPath(); c.moveTo(-14, 22); c.quadraticCurveTo(0, 10, 14, 22); st(c, 6); poly(c, [[26, -42], [34, -30], [42, -38], [38, -26]]); fs(c, '#fff', 4); },
@@ -215,6 +229,13 @@ const ICONS = {
   party(c) { poly(c, [[0, -46], [28, 28], [-28, 28]]); fs(c, '#5ED6A0'); for (const [x, y, col] of [[-8, 0, '#FF6B6B'], [8, 14, '#FFC93C'], [2, -20, '#4DB3EA']]) { circ(c, x, y, 5); c.fillStyle = col; c.fill(); } circ(c, 0, -46, 8); fs(c, '#FFC93C', 4); },
   einhorn(c) { c.beginPath(); c.moveTo(-14, 28); c.lineTo(0, -46); c.lineTo(14, 28); c.closePath(); fs(c, '#FFE9A3'); for (const y of [-18, -2, 14]) { c.beginPath(); c.moveTo(-10 + (y + 46) * 0.05, y + 6); c.lineTo(10 - (y + 46) * 0.05, y - 4); st(c, 4, '#E8A93C'); } },
   pilz(c) { ICONS.big(c); },
+  // freischaltbar (js/cosmetics.js)
+  pirat(c) { c.beginPath(); c.moveTo(-46, 22); c.quadraticCurveTo(-30, -30, 0, -26); c.quadraticCurveTo(30, -30, 46, 22); c.quadraticCurveTo(0, 6, -46, 22); fs(c, '#2E2A40'); circ(c, 0, -6, 9); fs(c, '#F4F6FF', 3); for (const s of [-1, 1]) { c.beginPath(); c.moveTo(-8 * s, 6); c.lineTo(8 * s, 14); st(c, 3, '#F4F6FF'); } },
+  koch(c) { rrect(c, -24, -2, 48, 30, 4); fs(c, '#FFFFFF'); for (const [x, y, r] of [[-18, -10, 16], [0, -22, 19], [18, -10, 16]]) { circ(c, x, y, r); fs(c, '#FFFFFF'); } rrect(c, -24, -2, 48, 12, 3); c.fillStyle = '#FFFFFF'; c.fill(); for (const x of [-10, 0, 10]) { c.beginPath(); c.moveTo(x, 8); c.lineTo(x, 26); st(c, 2.5, '#C9D3DF'); } },
+  heiligenschein(c) { c.save(); c.shadowColor = '#FFE066'; c.shadowBlur = 14; ell(c, 0, -14, 40, 12); st(c, 12); ell(c, 0, -14, 40, 12); st(c, 7, '#FFE066'); c.restore(); },
+  sombrero(c) { ell(c, 0, 20, 58, 14); fs(c, '#E8B04B'); c.beginPath(); c.moveTo(-24, 18); c.bezierCurveTo(-22, -34, 22, -34, 24, 18); c.closePath(); fs(c, '#E8B04B'); rrect(c, -24, 4, 48, 9, 3); fs(c, '#E8483C', 4); for (const x of [-40, 40]) { circ(c, x, 22, 4); c.fillStyle = '#17A37A'; c.fill(); } },
+  antenne(c) { rrect(c, -30, 16, 60, 14, 6); fs(c, '#A9B8D6'); for (const s of [-1, 1]) { c.beginPath(); c.moveTo(s * 12, 16); c.lineTo(s * 26, -30); st(c, 5); circ(c, s * 26, -34, 8); fs(c, s < 0 ? '#FF6B6B' : '#7FE3FF', 4); } },
+  zauberhut(c) { ell(c, 0, 24, 48, 10); fs(c, '#3A5FBF'); c.beginPath(); c.moveTo(-28, 22); c.quadraticCurveTo(-6, -10, 16, -50); c.quadraticCurveTo(14, -10, 28, 22); c.closePath(); fs(c, '#3A5FBF'); star(c, -4, 2, 9, 4); c.fillStyle = '#FFE066'; c.fill(); circ(c, 8, -24, 3); c.fill(); },
   kuerbis(c) { for (const [x, w] of [[-18, 20], [18, 20], [0, 22]]) { ell(c, x, 6, w, 26); fs(c, '#FF9F43'); } rrect(c, -5, -32, 10, 14, 3); fs(c, '#4E9E3F'); for (const s of [-1, 1]) { poly(c, [[s * 14, -6], [s * 6, 4], [s * 20, 4]]); c.fillStyle = INK; c.fill(); } c.beginPath(); c.moveTo(-14, 16); c.lineTo(-6, 22); c.lineTo(0, 16); c.lineTo(6, 22); c.lineTo(14, 16); st(c, 4); },
 };
 
@@ -232,9 +253,9 @@ function medal(c, col, n) {
 }
 
 // Reihenfolge = Index, den Spieler speichern (0 = kein Hut)
-export const HAT_IDS = ['', 'zylinder', 'kappe', 'strohhut', 'doktorhut', 'bauhelm', 'wikinger', 'schleife', 'blume', 'kirschen', 'party', 'einhorn', 'pilz', 'kuerbis'];
-export const HAT_NAMES = ['Ohne Hut', 'Zylinder', 'Kappe', 'Strohhut', 'Doktorhut', 'Bauhelm', 'Wikinger', 'Schleife', 'Blume', 'Kirschen', 'Partyhut', 'Einhorn', 'Pilz', 'Kürbis'];
-export const EMOTE_IDS = ['lachen', 'schreck', 'wut', 'kacka', 'winken'];
+export const HAT_IDS = ['', 'zylinder', 'kappe', 'strohhut', 'doktorhut', 'bauhelm', 'wikinger', 'schleife', 'blume', 'kirschen', 'party', 'einhorn', 'pilz', 'kuerbis', 'pirat', 'koch', 'heiligenschein', 'sombrero', 'antenne', 'zauberhut'];
+export const HAT_NAMES = ['Ohne Hut', 'Zylinder', 'Kappe', 'Strohhut', 'Doktorhut', 'Bauhelm', 'Wikinger', 'Schleife', 'Blume', 'Kirschen', 'Partyhut', 'Einhorn', 'Pilz', 'Kürbis', 'Piratenhut', 'Kochmütze', 'Heiligenschein', 'Sombrero', 'Antennen', 'Zauberhut'];
+export const EMOTE_IDS = ['lachen', 'schreck', 'wut', 'kacka', 'winken', 'cool', 'liebe', 'gaehn'];
 
 // ---------- Öffentliche Schnittstelle ----------
 
