@@ -6,7 +6,7 @@ Ein kostenloses Online-Partyspiel für **2–6 Spieler** direkt im Browser – a
 
 ## Warum es nicht langweilig wird
 
-**6 Spielmodi**, die sich jede Runde abwechseln:
+**9 Spielmodi**, die sich jede Runde abwechseln:
 
 | | Modus | Ziel |
 |---|---|---|
@@ -16,12 +16,40 @@ Ein kostenloses Online-Partyspiel für **2–6 Spieler** direkt im Browser – a
 | 🪙 | Münzrausch | Münzen sammeln – wer ins Wasser fällt, verliert die Hälfte |
 | 🎨 | Farbkampf | Die Insel in deiner Farbe anmalen |
 | 🧟 | Glibber-Fangen | Den Glibber weiterrempeln – wer ihn am kürzesten hatte, gewinnt |
+| 🤝 | Team-Plumps | Zwei Teams (Orange gegen Blau). Wer zuletzt noch jemanden auf der Insel hat, gewinnt – das ganze Team punktet. Nur bei gerader Spielerzahl ab 4. |
+| 😈 | Boss-Blob | Einer ist der riesige Boss, alle anderen schubsen ihn gemeinsam runter. Hält er 35 s durch, gewinnt er; sonst punktet, wer ihn runtergeschubst hat. Ab 3 Spielern. |
+| 🛡️ | Konterkönig | Punkte nur für Konter (+2) und Durchbrüche (+1), Rausfallen kostet einen. Dashes sind extra stark. |
 
-**10 Inseln**, darunter das sich drehende ✳️ Drehkreuz, die ⚖️ Wippe, das 🎠 Karussell mit fahrenden Inseln, ⭐ Seestern, 🌉 Brückeninseln und ⭕ Ringinsel.
+**10 Inseln mit eigener Mechanik.** Jede Gefahr kündigt sich gut 2 Sekunden vorher an – mit Bild und Ton:
 
-**20 Chaos-Karten**: Wer im Gesamtstand hinten liegt, wählt in 6 Sekunden aus 3 Karten, was die nächste Runde verändert. Zum Beispiel 🧊 Eisbahn, 🪞 Spiegelwelt, 💣 Bombenhagel, 🥔 Heiße Kartoffel, 🌑 Stromausfall, 🍌 Bananenrepublik, 🐌 Zeitlupe oder 🍮 Wackelpudding.
+| Insel | Was passiert |
+|---|---|
+| Rundinsel (Tropen) | Kokosnüsse fallen: Wo ein Schatten wächst, schlägt gleich eine ein. |
+| Kistenland | Schwere Kisten zum Schieben – rammt sie in die anderen oder ins Wasser. |
+| Drehkreuz (Schrottplatz) | Blinkende Pfeile = gleich dreht das Kreuz kurz schnell rückwärts. |
+| Brückeninseln | Die Brücke knarzt, leuchtet und bricht ein. Später wird sie neu gebaut. |
+| Archipel (Sandbank) | Blubbert eine Sandbank, geht sie für ein paar Sekunden unter. |
+| Ringinsel (Vulkan) | Der Vulkan spuckt Lava – rote Kreise zeigen, wo sie landet. |
+| Karussell (Süßigkeiten) | Dreht regelmäßig auf: Die Fliehkraft zieht alle nach außen. |
+| Seestern (Korallenriff) | Der Seestern zieht ab und zu einen Arm ein. |
+| Kartoffelinsel (Acker) | Ein Maulwurf buddelt Löcher: Wo die Erde bebt, ist gleich ein Loch. |
+| Wippe (Holzfloß) | Das Floß kippelt, alle rutschen zum tiefen Ende. Pfeile zeigen die Richtung. |
 
-**8 Power-ups** in Seifenblasen: 🥊 Boxhandschuh, ⚓ Anker, 🍄 Riesenpilz, 👟 Turboschuhe, 🍌 Bananen, 💣 Bombe, 🔄 Tauschticket, 🫥 Tarnkappe.
+**16 Chaos-Karten**: Wer im Gesamtstand hinten liegt, wählt in 6 Sekunden aus 3 Karten, was die nächste Runde verändert. Jede Karte hat zusätzlich einen **Vorteil für den, der wählt** (Geschenk-Symbol) oder einen **Nachteil für die Krone**, also den Führenden (Kronen-Symbol). Ein paar Beispiele:
+
+| Karte | Für alle | Extra |
+|---|---|---|
+| Eisbahn | Kaum Reibung | Wer wählt, hat Spikes |
+| Riese & Zwerg | – | Wer wählt, wird riesig, die Krone winzig |
+| Bombenhagel | Es regnet Bomben | Bomben zielen bevorzugt auf die Krone |
+| Magnetfeld | Alle werden angezogen | … und zwar von der Krone |
+| Heiße Kartoffel | Wer sie bei der Explosion hält, fliegt | Die Krone hat sie zuerst, bei ihr tickt sie doppelt so schnell |
+| Zeitlupe | Alles in Zeitlupe | Wer wählt, ist flinker und hat einen Turbo-Dash |
+| Platztausch | Alle tauschen regelmäßig die Plätze | Die Krone landet immer am Rand |
+
+Außerdem: Spiegelwelt, Sturmflut, Donut, Stromausfall, Schrumpf-Insel, Flipper, Geisterstunde, Bescherung, Bananenrepublik.
+
+**8 Power-ups** in Seifenblasen: 🥊 Boxhandschuh, ⚓ Anker, 🍄 Riesenpilz, 👟 Turboschuhe, 🍌 Bananen, 💣 Bombe, 🔄 Tauschticket (tauscht mit dem, der am sichersten steht), 🫥 Tarnkappe (fast unsichtbar, nur ein gläserner Umriss – beim Dash blitzt du auf). Alle sind per Headless-Test ausbalanciert.
 
 Außerdem:
 - **Kaum Wartezeit** – Zwischen den Runden schwabbelt ihr schon frei auf der nächsten Insel herum (mit Emotes, ohne Punkte), während Kartenwahl und Zwischenstand oben eingeblendet sind. Von Rundenende bis zum nächsten Start vergehen rund 8 Sekunden.
@@ -133,6 +161,10 @@ Simuliert ohne Grafik Runden nur mit Bots, in allen Kombinationen aus Modus, Ins
 - Abstürze und Runden ohne Ende
 - die Pause zwischen den Runden (Ziel: höchstens ~8 s)
 - ob jedes Match im Finale entschieden wird
+- pro Insel: Stürze pro Minute, Anteil ohne Schubser, Warnungen pro Minute (mit `--ohne-mechanik` zum Vergleich ohne Insel-Mechanik)
+- pro Chaos-Karte: wie oft der Wählende bzw. die Krone gewinnt
+- wie oft der Boss-Blob bei 3, 4 und 6 Spielern durchhält
+- pro Power-up: wie oft gewinnt, wer es aufgesammelt hat, und wie viele Rauswürfe danach gelingen
 - durchschnittliche Rundendauer pro Modus
 - Siegverteilung nach Bot-Stärke
 - die Prüfungen zur Treffer-Zuordnung
@@ -155,7 +187,8 @@ Jede Datei in `js/modes/`, `js/cards/`, `js/items/` und `js/maps/` ist ein Objek
 
 - **Chaos-Karte:** neue Datei in `js/cards/`, in `js/cards/index.js` eintragen. Zum Beispiel ändert `globalMods(g, gm)` Werte für alle, `step(g, dt, alive)` läuft jeden Tick.
 - **Modus:** neue Datei in `js/modes/`. Mindestens `checkEnd` oder `time` + `score`.
-- **Insel:** neue Datei in `js/maps/` aus Kreisen (`k: 'c'`) und Rechtecken (`k: 'r'`). `angle: (t) => …` lässt sie drehen, `orbit` lässt Teile im Kreis fahren.
+- **Insel:** neue Datei in `js/maps/` aus Kreisen (`k: 'c'`) und Rechtecken (`k: 'r'`). `angle: (t) => …` lässt sie drehen, `orbit` lässt Teile im Kreis fahren. Die Mechanik kommt in `step(g, dt, alive)`; Bausteine mit eingebauter Vorwarnung liegen in `js/maps/hazards.js` (`dropCycle`, `sinkCycle`, `holeCycle`, `spinPhase`), eigene Warnungen per `g.warn({ kind, x, y, r, warn, fire })`. `hint` ist der Satz, der beim ersten Mal erklärt, was passiert.
+- **Chaos-Karte mit Extra:** `perk` (ein Satz) und `perkFor: 'picker' | 'leader'`; im Code helfen `g.isPicker(p)` und `g.isLeader(p)`.
 - **Power-up:** neue Datei in `js/items/` mit `apply` und optional `effects`.
 - Zahlen gehören nach `js/tuning.js`.
 

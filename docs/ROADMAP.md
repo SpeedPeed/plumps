@@ -102,6 +102,7 @@ Schere-Stein-Papier: **Dash > Herumlaufen, Stemmen > Dash, aufgeladener Dash > S
 1. **Emojis außerhalb der Spielwelt:** Die Vorgabe gilt für das Canvas. Für „sieht auf allen Geräten gleich aus“ würde ich in Phase 2 auch Knöpfe, Karten und Hinweise auf eigene SVG-Symbole umstellen. Einverstanden?
 2. **TURN-Server (Phase 6):** Wirklich kostenlose TURN-Dienste brauchen fast immer ein (kostenloses) Konto mit Zugangsdaten, z. B. Metered „Open Relay“ oder Cloudflare. Die Zugangsdaten stünden dann öffentlich im Code. Ist das für dich in Ordnung, oder soll man sie im Spiel eintragen können?
 3. **Team-Modus (Phase 4):** Nur ab 4 Spielern sinnvoll. Sollen Bots auffüllen, damit Teams bei 3 oder 5 Spielern aufgehen?
+   *Umgesetzt (vorläufig):* Team-Plumps kommt nur bei gerader Spielerzahl ab 4 in den Topf – mitten im Match tauchen keine zusätzlichen Bots auf. Lässt sich ändern, falls ihr lieber auffüllen wollt.
 4. **Freischaltungen (Phase 5):** Ein Profil im localStorage lässt sich leicht manipulieren. Für ein Freundespiel halte ich das für egal. Passt das?
 5. **Spielzeit pro Match:** Für „eine Stunde, 3 Matches“ wären ca. 12–18 Minuten pro Match ideal. Soll der Standard dafür auf 5 Punkte bleiben?
 6. **Zufall mit Startwert:** Ein Match lässt sich mit gleichem Startwert und gleichen Eingaben nachspielen. Soll man in Phase 3 den Startwert z. B. für Revanchen „gleiche Inselfolge“ nutzen können, oder bleibt das nur ein Werkzeug für Tests?
