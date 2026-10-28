@@ -19,7 +19,7 @@
   <section id="menu" class="screen">
     <div class="panel">
       <h1 class="logo">PLUMPS!</h1>
-      <p class="tag">Schubs alle anderen Blobs von der Insel.<br>Wer rausfliegt, spukt als Geist weiter.</p>
+      <p class="tag">Schubs alle anderen Blobs von der Insel.<br>6 Modi · 10 Inseln · 20 Chaos-Karten · 8 Power-ups</p>
       <label class="field">Dein Name
         <input id="name" maxlength="14" placeholder="z.B. Schwabbel" autocomplete="off">
       </label>
@@ -37,7 +37,10 @@
           <li><b>Dash:</b> Leertaste · Handy: DASH-Knopf. Wer gedasht wird, fliegt weit!</li>
           <li><b>Rundensieg:</b> Wer als Letzter auf der Insel steht, bekommt 1 Punkt.</li>
           <li><b>Geister:</b> Rausgeflogen? Du schwebst weiter und kannst mit <b>PUPS</b> (Leertaste) Lebende wegschubsen.</li>
-          <li><b>Chaos-Karte:</b> Wer zuerst rausgeflogen ist, wählt eine von 3 Karten, die die nächste Runde verändert.</li>
+          <li><b>6 Spielmodi</b> im Wechsel: Letzter Blob, Drei Leben, Hügelkönig, Münzrausch, Farbkampf, Glibber-Fangen – auf 10 verschiedenen Inseln.</li>
+          <li><b>Chaos-Karte:</b> Wer hinten liegt, wählt eine von 3 Karten, die die nächste Runde verändert (20 Karten).</li>
+          <li><b>Power-ups</b> in Seifenblasen: einfach drüberlaufen. 🥊 ⚓ 🍄 👟 🍌 💣 🔄 🫥</li>
+          <li><b>Emotes:</b> Tasten 1–5 oder die Knöpfe rechts.</li>
           <li><b>Königsmord:</b> Der Führende trägt eine Krone. Wer ihn runterschubst, kriegt +1 Bonuspunkt.</li>
           <li>Nach ~20 Sekunden schrumpft die Insel. Campen bringt nix.</li>
         </ul>
@@ -53,14 +56,26 @@
         <button id="btnCopy">🔗 Einladungslink kopieren</button>
       </div>
       <ul id="lobbyList" class="plist"></ul>
+      <div class="hatrow">
+        <span>Dein Hut</span>
+        <button id="hatPrev" class="mini">◀</button>
+        <span id="hatShow" class="hat">🎩</span>
+        <button id="hatNext" class="mini">▶</button>
+      </div>
       <div id="hostCtl">
         <div class="row">
           <button id="btnBotAdd">+ Bot</button>
           <button id="btnBotDel">− Bot</button>
-          <label class="sel">Punkte zum Sieg
-            <select id="target"><option>3</option><option selected>5</option><option>7</option><option>10</option></select>
-          </label>
         </div>
+        <label class="sel">Bot-Stärke
+          <select id="botLevel"><option value="0" selected>😴 Leicht</option><option value="1">🙂 Mittel</option><option value="2">😈 Schwer</option></select>
+        </label>
+        <label class="sel">Spielmodi
+          <select id="modeMix"><option value="1" selected>🎲 Alle Modi im Wechsel</option><option value="0">🏝️ Nur „Letzter Blob“</option></select>
+        </label>
+        <label class="sel">Punkte zum Sieg
+          <select id="target"><option>3</option><option selected>5</option><option>7</option><option>10</option></select>
+        </label>
         <button id="btnStart" class="big">Los geht's!</button>
       </div>
       <p id="waitHost" class="muted">Warte, bis der Host startet …</p>
@@ -75,6 +90,7 @@
     <div id="banner"></div>
     <div id="hint"></div>
     <div id="toasts"></div>
+    <div id="emotes"></div>
     <div id="topBtns">
       <button id="btnMute" title="Ton an/aus">🔊</button>
       <button id="btnExit" title="Spiel verlassen">🚪</button>
@@ -85,6 +101,7 @@
   <section id="pick" class="screen hidden">
     <div class="pickwrap">
       <h2 id="pickTitle"></h2>
+      <p id="pickSub" class="picksub"></p>
       <div id="pickCards"></div>
       <div id="pickTimer"></div>
     </div>
@@ -95,6 +112,7 @@
     <div class="panel">
       <h2 id="endTitle"></h2>
       <ol id="podium" class="plist"></ol>
+      <ul id="awards" class="plist awards"></ul>
       <div id="endHost">
         <button id="btnAgain" class="big">🔁 Revanche!</button>
         <button id="btnToLobby" class="ghost-btn">Zur Lobby</button>

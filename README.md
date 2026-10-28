@@ -6,13 +6,29 @@ Ein kostenloses Online-Partyspiel für **2–6 Spieler** direkt im Browser – a
 
 ## Warum es nicht langweilig wird
 
-- **Geister spielen weiter 👻** – Wer rausfliegt, schwebt als Geist über der Insel und kann mit einer **Pups-Welle** die Lebenden ins Wasser blasen. Niemand sitzt rum und wartet.
-- **Chaos-Karten 🃏** – Wer zuerst rausgeflogen ist, darf aus 3 Karten wählen, was die nächste Runde verändert. 16 Karten, z.B.:
-  - 🧊 Eisbahn · 🐘 Riesenblobs · 🐭 Mini-Blobs · 🪞 Spiegelwelt (Steuerung vertauscht – nur nicht für dich)
-  - 💣 Bombenhagel · 🥔 Heiße Kartoffel · 🌑 Stromausfall · 🔀 Platztausch · 🧲 Magnetfeld · 🍩 Donut-Insel …
-- **Königsmord 👑** – Wer führt, trägt eine Krone. Wer den König ins Wasser schubst, bekommt einen Bonuspunkt.
-- **Schrumpfende Insel** – Nach ~20 Sekunden wird die Insel kleiner. Campen bringt nichts.
-- **Bots 🤖** – Zu zweit? Einfach ein paar Bots dazunehmen, dann ist mehr los.
+**6 Spielmodi**, die sich jede Runde abwechseln:
+
+| | Modus | Ziel |
+|---|---|---|
+| 🏝️ | Letzter Blob | Als Letzter auf der Insel stehen |
+| ❤️ | Drei Leben | Am Ende als Einziger noch Leben übrig haben |
+| ⛰️ | Hügelkönig | Allein im wandernden Kreis stehen, bis der Balken voll ist |
+| 🪙 | Münzrausch | Münzen sammeln – wer ins Wasser fällt, verliert die Hälfte |
+| 🎨 | Farbkampf | Die Insel in deiner Farbe anmalen |
+| 🧟 | Glibber-Fangen | Den Glibber weiterrempeln – wer ihn am kürzesten hatte, gewinnt |
+
+**10 Inseln**, darunter das sich drehende ✳️ Drehkreuz, die ⚖️ Wippe, das 🎠 Karussell mit fahrenden Inseln, ⭐ Seestern, 🌉 Brückeninseln und ⭕ Ringinsel.
+
+**20 Chaos-Karten**: Wer im Gesamtstand hinten liegt, wählt aus 3 Karten, was die nächste Runde verändert. Zum Beispiel 🧊 Eisbahn, 🪞 Spiegelwelt, 💣 Bombenhagel, 🥔 Heiße Kartoffel, 🌑 Stromausfall, 🍌 Bananenrepublik, 🐌 Zeitlupe oder 🍮 Wackelpudding.
+
+**8 Power-ups** in Seifenblasen: 🥊 Boxhandschuh, ⚓ Anker, 🍄 Riesenpilz, 👟 Turboschuhe, 🍌 Bananen, 💣 Bombe, 🔄 Tauschticket, 🫥 Tarnkappe.
+
+Außerdem:
+- **Geister 👻** – Wer im Modus „Letzter Blob“ rausfliegt, schwebt weiter und kann mit einer **Pups-Welle** die Lebenden ins Wasser blasen.
+- **Königsmord 👑** – Wer den Führenden ins Wasser schubst, bekommt einen Bonuspunkt.
+- **Hüte & Emotes** – Such dir in der Lobby einen Hut aus, im Spiel gibt's Emotes auf den Tasten 1–5.
+- **Auszeichnungen** am Ende: Rausschubser, Wasserratte, Pups-Meister, Sammler, Dash-Junkie.
+- **Bots 🤖** in drei Stärken (Leicht, Mittel, Schwer) für kleine Runden.
 
 ## Steuerung
 
@@ -41,7 +57,8 @@ Der Host sollte den Tab offen lassen – sein Browser ist der Server.
 ```
 index.html      Bildschirme (Menü, Lobby, HUD, Kartenwahl, Siegerehrung)
 style.css
-js/sim.js       Spiellogik + Physik + Bots (läuft nur beim Host)
+js/sim.js       Spiellogik, Modi, Karten, Power-ups, Bots (läuft nur beim Host)
+js/maps.js      Inselformen (Kreise/Rechtecke, drehend/fahrend)
 js/net.js       Host/Client über PeerJS
 js/render.js    Canvas-Grafik
 js/input.js     Tastatur, Touch-Joystick, Gamepad
@@ -62,10 +79,11 @@ Dann <http://localhost:8000> öffnen.
 Repository → **Settings** → **Pages** → Source: *Deploy from a branch* → Branch `main`, Ordner `/ (root)` → Save.
 Nach ~1 Minute läuft das Spiel unter `https://<dein-name>.github.io/plumps/`.
 
-### Eigene Chaos-Karte bauen
+### Eigene Inhalte bauen
 
-1. In `js/sim.js` bei `CARDS` einen Eintrag hinzufügen.
-2. In `Game.step()` (oder `beginCountdown()`) mit `if (card === 'deinekarte')` die Regel einbauen.
+- **Chaos-Karte:** in `js/sim.js` bei `CARDS` eintragen und in `Game.step()` mit `if (card === 'deinekarte')` die Regel einbauen.
+- **Insel:** in `js/maps.js` bei `MAPS` aus Kreisen (`k: 'c'`) und Rechtecken (`k: 'r'`) zusammensetzen. `angle: (t) => …` lässt sie drehen, `orbit` lässt Teile im Kreis fahren.
+- **Power-up:** bei `ITEMS` eintragen und in `Game.applyItem()` die Wirkung einbauen.
 
 ## Bekannte Grenzen
 

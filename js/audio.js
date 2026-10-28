@@ -70,5 +70,13 @@ export const sfx = {
   win: () => [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.2, 0.25, i * 0.11)),
   draw: () => tone('sawtooth', 300, 120, 0.6, 0.15),
   regicide: () => [784, 622, 523].forEach((f, i) => tone('square', f, f, 0.15, 0.12, i * 0.1)),
+  coin: () => { tone('square', 988, 988, 0.06, 0.08); tone('square', 1319, 1319, 0.12, 0.08, 0.06); },
+  punch: () => { noise(0.25, 0.45, 1500); tone('square', 160, 50, 0.2, 0.25); },
+  slip: () => tone('sine', 300, 1400, 0.35, 0.2),
+  item: () => [660, 880, 1100].forEach((f, i) => tone('sine', f, f, 0.08, 0.15, i * 0.05)),
+  respawn: () => tone('triangle', 300, 700, 0.2, 0.15),
+  tag: () => { tone('sawtooth', 200, 90, 0.3, 0.15); noise(0.2, 0.15, 500); },
+  zone: () => tone('triangle', 500, 750, 0.2, 0.15),
+  matchball: () => [392, 523, 659].forEach((f, i) => tone('square', f, f, 0.18, 0.1, i * 0.12)),
   champion: () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.25, 0.25, i * 0.14)),
 };
