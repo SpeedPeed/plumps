@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>PLUMPS! – Symbol-Übersicht</title>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 16px; background: #2C8FC9; font-family: Nunito, sans-serif; color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+  figure { margin: 0; background: #FFF6E5; border-radius: 14px; padding: 6px; text-align: center; color: #2A1B3D; font-size: 12px; font-weight: 800; }
+  canvas { width: 80px; height: 80px; }
+</style>
+</head>
+<body>
+<h1>Symbol-Übersicht</h1>
+<p>Alle Symbole aus <code>js/art/icons.js</code>. Zum Prüfen des Stils: <code>python3 -m http.server</code>, dann <code>/tools/icons.html</code> öffnen.</p>
+<div class="grid" id="grid"></div>
+<script type="module">
+  import { drawIcon, ICON_IDS } from '../js/art/icons.js';
+  const grid = document.getElementById('grid');
+  await document.fonts.ready;
+  for (const id of ICON_IDS) {
+    const fig = document.createElement('figure');
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 160;
+    drawIcon(cv.getContext('2d'), id, 80, 80, 140);
+    fig.append(cv, Object.assign(document.createElement('figcaption'), { textContent: id }));
+    grid.append(fig);
+  }
+</script>
+</body>
+</html>
