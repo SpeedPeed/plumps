@@ -18,8 +18,14 @@ export class Host {
   constructor(handlers) {
     this.h = handlers;
     this.conns = new Map();
+    this.seen = new Map();   // wann zuletzt etwas von wem kam
     this.tries = 0;
     this.open();
+    // Wer den Tab einfach schließt, meldet sich oft nicht ab – nach 6 s Funkstille gilt er als gegangen
+    this.watchdog = setInterval(() => {
+      const now = performance.now();
+      for (const id of this.conns.keys()) if (now - (this.seen.get(id) || now) > 6000) this.drop(id);
+    }, 1000);
   }
 
   open() {
@@ -34,16 +40,22 @@ export class Host {
     this.peer.on('connection', (conn) => {
       conn.on('open', () => {
         this.conns.set(conn.peer, conn);
+        this.seen.set(conn.peer, performance.now());
       });
-      conn.on('data', (msg) => this.h.onData(conn.peer, msg));
-      const gone = () => {
-        if (!this.conns.has(conn.peer)) return;
-        this.conns.delete(conn.peer);
-        this.h.onLeave(conn.peer);
-      };
-      conn.on('close', gone);
-      conn.on('error', gone);
+      conn.on('data', (msg) => { this.seen.set(conn.peer, performance.now()); this.h.onData(conn.peer, msg); });
+      conn.on('close', () => this.drop(conn.peer));
+      conn.on('error', () => this.drop(conn.peer));
     });
+  }
+
+  // Verbindung gilt als beendet (nur einmal melden)
+  drop(id) {
+    const c = this.conns.get(id);
+    if (!c) return;
+    this.conns.delete(id);
+    this.seen.delete(id);
+    try { c.close(); } catch { /* schon zu */ }
+    this.h.onLeave(id);
   }
 
   send(id, msg) {
@@ -62,6 +74,7 @@ export class Host {
 
   close() {
     this.closed = true;
+    clearInterval(this.watchdog);
     this.peer.destroy();
   }
 }
