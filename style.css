@@ -182,6 +182,12 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(255, 201, 60, 0.6); }
   .card .art { width: 50px; height: 50px; } .card .art img { width: 38px; height: 38px; }
   .card .corner { display: none; }
   .card b { font-size: 14px; } .card span { font-size: 10.5px; }
+  /* Handy: Karten als Zeilen (Bild links, Text rechts), damit der Vorteil lesbar bleibt */
+  #pickCards { flex-direction: column; }
+  .card { flex-direction: row; max-width: none; text-align: left; align-items: center; gap: 8px; padding: 6px 8px; }
+  .card .art { flex: none; width: 44px; height: 44px; } .card .art img { width: 34px; height: 34px; }
+  .card .txt { flex: 1; }
+  .card em.perk { flex: 1.1; margin: 0; font-size: 10.5px; }
   #standings li { font-size: 15px; } #standings li .av { width: 28px; height: 28px; }
 }
 
@@ -248,6 +254,7 @@ body.replaying #cv { filter: saturate(.75) contrast(1.05); }
 
 @media (pointer: coarse) {
   #hint { left: 12px; transform: none; max-width: calc(100% - 150px); text-align: left; border-radius: 16px; font-size: 13px; }
+  body:has(#toasts .tip) #hint { display: none; }  /* eine Erklärung zur Zeit */
   #emotes { top: auto; bottom: max(250px, calc(env(safe-area-inset-bottom) + 222px)); right: 12px; transform: none; gap: 4px; }
   #emotes button { width: 42px; height: 42px; }
   #emotes button img { width: 30px; height: 30px; }

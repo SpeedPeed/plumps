@@ -596,11 +596,15 @@ function toast(html, cls = '', ms = 2700) {
 
 // Erklärungen erscheinen nur beim ersten Mal (gemerkt im Browser)
 const seenTips = new Set((store.get('plumps-tips') || '').split(',').filter(Boolean));
+// Immer nur eine Erklärung gleichzeitig; weitere warten, bis die vorige weg ist
+let tipBusyUntil = 0;
 function tip(key, html) {
   if (seenTips.has(key)) return;
   seenTips.add(key);
   store.set('plumps-tips', [...seenTips].join(','));
-  toast(iconHTML('gluehbirne') + ' ' + html, 'tip', 6100);
+  const now = performance.now(), wait = Math.max(0, tipBusyUntil - now);
+  tipBusyUntil = now + wait + 6100;
+  setTimeout(() => toast(iconHTML('gluehbirne') + ' ' + html, 'tip', 6100), wait);
 }
 
 // Große Einblendung: wer wen ins Wasser geschickt hat
