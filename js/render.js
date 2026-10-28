@@ -10,6 +10,8 @@ export class View {
     this.ctx = canvas.getContext('2d');
     this.fx = [];      // Partikel / Ringe
     this.shake = 0;
+    this.cam = { x: 0, y: 0, z: 1 };   // Kamera: zoomt im letzten Duell heran
+    this.trails = new Map();           // Bewegungsspuren bei hohem Tempo
     this.resize();
     window.addEventListener('resize', () => this.resize());
   }
@@ -77,6 +79,43 @@ export class View {
         if (p) this.fx.push({ type: 'ring', x: p.x, y: p.y, r: 60, vr: -150, life: 0.35, max: 0.35, color: p.c, w: 6 });
         break;
       }
+      case 'counter':
+        this.fx.push({ type: 'ring', x: e.x, y: e.y, r: 14, vr: 520, life: 0.35, max: 0.35, color: '#ffffff', w: 12 });
+        this.fx.push({ type: 'star', x: e.x, y: e.y, life: 0.4, max: 0.4, r: 46 });
+        this.fx.push({ type: 'text', x: e.x, y: e.y - 40, vx: 0, vy: -70, life: 1.1, max: 1.1, text: 'KONTER!', color: '#7fe3ff', size: 30 });
+        this.shake = Math.max(this.shake, 14);
+        break;
+      case 'break':
+        for (let i = 0; i < 14; i++) { const a = Math.random() * 6.28, sp = 120 + Math.random() * 220; this.fx.push({ type: 'shard', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: a, life: 0.6, max: 0.6, color: '#c9d3df', r: 7 }); }
+        this.fx.push({ type: 'text', x: e.x, y: e.y - 40, vx: 0, vy: -70, life: 1.1, max: 1.1, text: 'DURCHBRUCH!', color: '#ff9f43', size: 28 });
+        this.shake = Math.max(this.shake, 16);
+        break;
+      case 'hit':
+        this.fx.push({ type: 'ring', x: e.x, y: e.y, r: 10, vr: 300 + e.p * 300, life: 0.25, max: 0.25, color: '#fff3c4', w: 8 });
+        this.fx.push({ type: 'star', x: e.x, y: e.y, life: 0.3, max: 0.3, r: 22 + e.p * 26 });
+        this.shake = Math.max(this.shake, 6 + e.p * 10);
+        break;
+      case 'wobble':
+        this.fx.push({ type: 'text', x: e.x, y: e.y - 44, vx: 0, vy: -30, life: 0.6, max: 0.6, text: '!!', color: '#ffd23f', size: 24 });
+        break;
+      case 'save':
+        this.fx.push({ type: 'text', x: e.x, y: e.y - 40, vx: 0, vy: -50, life: 1, max: 1, text: 'Gerettet!', color: '#8fffa0', size: 20 });
+        for (let i = 0; i < 8; i++) { const a = Math.random() * 6.28; this.fx.push({ type: 'dot', x: e.x, y: e.y, vx: Math.cos(a) * 80, vy: Math.sin(a) * 80, life: 0.4, max: 0.4, color: '#f3d98b', r: 4 }); }
+        break;
+      case 'brace': {
+        const p = snap?.p.find(q => q.id === e.id);
+        if (p) for (let i = 0; i < 8; i++) { const a = Math.random() * 6.28; this.fx.push({ type: 'dot', x: p.x + Math.cos(a) * p.r, y: p.y + Math.sin(a) * p.r * 0.6 + p.r * 0.5, vx: Math.cos(a) * 60, vy: Math.sin(a) * 30, life: 0.35, max: 0.35, color: '#d8c38a', r: 4 }); }
+        break;
+      }
+      case 'ko': {
+        const p = snap?.p.find(q => q.id === e.victim);
+        if (p) {
+          for (let i = 0; i < 22; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2, sp = 160 + Math.random() * 260; this.fx.push({ type: 'dot', x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.9, max: 0.9, color: i % 3 ? '#cfefff' : '#ffffff', r: 5, grav: 520 }); }
+          this.fx.push({ type: 'text', x: p.x, y: p.y - 30, vx: 0, vy: -60, life: 1.2, max: 1.2, text: 'PLUMPS!', color: '#ffffff', size: 30 });
+        }
+        this.shake = Math.max(this.shake, 10);
+        break;
+      }
       case 'tag': {
         const p = snap?.p.find(q => q.id === e.id);
         if (p) for (let i = 0; i < 12; i++) { const a = Math.random() * 6.28, sp = 60 + Math.random() * 120; this.fx.push({ type: 'dot', x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.6, max: 0.6, color: '#7be03c', r: 5 }); }
@@ -100,9 +139,12 @@ export class View {
     ctx.fillRect(0, 0, w, h);
 
     const S = this.scale;
+    this.updateCamera(s, dt);
+    const cam = this.cam;
     ctx.save();
     ctx.translate(w / 2 + sx, h / 2 + sy + Math.min(30, h * 0.03));
-    ctx.scale(S, S);
+    ctx.scale(S * cam.z, S * cam.z);
+    ctx.translate(-cam.x, -cam.y);
 
     // Wellen
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -250,6 +292,7 @@ export class View {
 
     // Blobs
     const players = s.p.filter(p => p.st !== 'ghost').sort((a, b) => a.y - b.y);
+    this.drawTrails(s, dt);
     for (const p of players) this.drawBlob(p, s, myId, now);
 
     // Partikel
@@ -265,7 +308,7 @@ export class View {
       ctx.arc(me.x, me.y, 105, 0, Math.PI * 2, true);
       ctx.fill();
       ctx.restore();
-      for (const p of players) if (p.st === 'alive' && p.id !== myId) this.drawEyes(p, true);
+      for (const p of players) if (p.st === 'alive' && p.id !== myId) this.drawEyes(p, 'glow');
     }
 
     // Geister schweben über allem
@@ -278,7 +321,7 @@ export class View {
     // Partikel altern lassen
     for (const f of this.fx) {
       f.life -= dt;
-      if (f.vx !== undefined) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.94; f.vy *= 0.94; }
+      if (f.vx !== undefined) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.94; f.vy *= 0.94; if (f.grav) f.vy += f.grav * dt; }
       if (f.vr) f.r += f.vr * dt;
     }
     this.fx = this.fx.filter(f => f.life > 0);
@@ -296,21 +339,38 @@ export class View {
     const stretch = Math.min(0.28, sp / 2000);
     const ang = Math.atan2(p.vy, p.vx);
     const wob = Math.sin(now * 9 + p.x * 0.05) * 0.04;
-    const r = p.r * scale;
+    const charging = p.ch >= 0 && p.st === 'alive';
+    // Beim Aufladen zieht sich der Blob zusammen und zittert bei voller Ladung
+    const squeeze = charging ? 1 - 0.18 * p.ch : 1;
+    const jitter = charging && p.ch >= 1 ? Math.sin(now * 60) * 1.5 : 0;
+    const r = p.r * scale * squeeze;
     const slimy = s.ig === p.id && p.st === 'alive';
+    const mood = p.st === 'falling' ? 'dizzy' : p.wb ? 'panic' : p.dz || p.sl ? 'dizzy' : charging ? 'strain' : p.br ? 'strain' : 'normal';
 
     ctx.save();
     ctx.globalAlpha = alpha;
     if (!hidden) {
       ctx.fillStyle = 'rgba(0,0,0,0.22)';
-      ctx.beginPath(); ctx.ellipse(p.x + 4, p.y + r * 0.7, r * 0.95, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(p.x + 4, p.y + r * 0.7, r * (p.br ? 1.2 : 0.95), r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.translate(p.x, p.y);
+    // Ladering: zeigt allen, dass gleich ein starker Dash kommt
+    if (charging && !hidden) {
+      ctx.strokeStyle = p.ch >= 1 ? '#ffffff' : hexA(p.c, 0.9);
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 10, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.05, p.ch)); ctx.stroke();
+    }
+    if (p.wb && !hidden) this.drawArms(p, r, now);
+    ctx.translate(p.x + jitter, p.y);
     if (p.sl) ctx.rotate(now * 14);
-    ctx.rotate(ang);
-    ctx.scale(1 + stretch + wob, 1 - stretch * 0.7 - wob);
-    ctx.rotate(-ang);
-    if (p.dt) { ctx.shadowColor = p.c; ctx.shadowBlur = 25; }
+    if (p.br) {
+      ctx.scale(1.18, 0.84); // breit und flach: festgekrallt
+    } else {
+      ctx.rotate(ang);
+      ctx.scale(1 + stretch + wob, 1 - stretch * 0.7 - wob);
+      ctx.rotate(-ang);
+    }
+    if (p.dt) { ctx.shadowColor = p.c; ctx.shadowBlur = 25 + p.dk * 20; }
+    if (charging) { ctx.shadowColor = p.c; ctx.shadowBlur = 10 + p.ch * 25 + Math.sin(now * 20) * 5; }
     if (p.pw.includes('glove')) { ctx.shadowColor = '#ff3b3b'; ctx.shadowBlur = 18; }
     const bg = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r);
     bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.25, p.c); bg.addColorStop(1, shade(p.c, -0.35));
@@ -324,14 +384,24 @@ export class View {
       for (let i = 0; i <= 5; i++) ctx.lineTo(r * 0.95 - i * r * 0.38, r * 0.1 + (i % 2 ? r * 0.35 + Math.sin(now * 6 + i) * 4 : 0));
       ctx.fill();
     }
+    if (p.br) {
+      // Stemmen: dicke steinerne Kontur, im perfekten Moment hell aufblitzend
+      ctx.strokeStyle = p.br === 2 ? '#ffffff' : '#6f7c8c';
+      ctx.lineWidth = p.br === 2 ? 6 : 5;
+      ctx.beginPath(); ctx.arc(0, 0, r + 1, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#4a3a2a'; ctx.lineWidth = 3;
+      for (const sx of [-0.6, -0.2, 0.2, 0.6]) { ctx.beginPath(); ctx.moveTo(sx * r, r * 0.8); ctx.lineTo(sx * r * 1.25, r * 1.15); ctx.stroke(); }
+    }
     if (p.pw.includes('anchor')) { ctx.strokeStyle = '#596e85'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); }
-    if (me && p.st === 'alive') { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); }
+    if (me && p.st === 'alive' && !p.br) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); }
     ctx.restore();
 
     if (hidden) return;
     ctx.save();
     ctx.globalAlpha = alpha;
-    this.drawEyes({ ...p, r }, false, p.st === 'falling' || p.sl);
+    this.drawEyes({ ...p, x: p.x + jitter, r }, mood);
+    if (p.wb) this.drawSweat(p, r, now);
+    if (p.dz && p.st === 'alive') this.drawStars(p, r, now);
 
     if (p.st === 'alive') {
       let top = p.y - r;
@@ -366,6 +436,84 @@ export class View {
       if (p.em >= 0) this.drawBubble(p.x, top - 6, EMOTES[p.em]);
     }
     ctx.restore();
+  }
+
+  // Rudernde Ärmchen beim Wackeln an der Kante
+  drawArms(p, r, now) {
+    const { ctx } = this;
+    ctx.save();
+    ctx.strokeStyle = shade(p.c, -0.2); ctx.lineWidth = 5; ctx.lineCap = 'round';
+    for (const side of [-1, 1]) {
+      const a = now * 22 * side;
+      const bx = p.x + side * r * 0.9, by = p.y - r * 0.1;
+      const ex = bx + side * r * 0.55 + Math.cos(a) * r * 0.35, ey = by - r * 0.3 + Math.sin(a) * r * 0.45;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx + side * r * 0.5, by - r * 0.6, ex, ey); ctx.stroke();
+      ctx.fillStyle = p.c;
+      ctx.beginPath(); ctx.arc(ex, ey, 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawSweat(p, r, now) {
+    const { ctx } = this;
+    const k = (now * 2.5) % 1;
+    ctx.fillStyle = 'rgba(160,220,255,0.95)';
+    const x = p.x + r * 0.75, y = p.y - r * 0.7 + k * 10;
+    ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.quadraticCurveTo(x + 5, y + 2, x, y + 4); ctx.quadraticCurveTo(x - 5, y + 2, x, y - 6); ctx.fill();
+  }
+
+  // Benommen: Sternchen kreisen über dem Kopf
+  drawStars(p, r, now) {
+    const { ctx } = this;
+    ctx.fillStyle = '#ffe066';
+    for (let i = 0; i < 3; i++) {
+      const a = now * 5 + i * 2.09;
+      const x = p.x + Math.cos(a) * r * 0.8, y = p.y - r * 1.05 + Math.sin(a) * r * 0.25;
+      ctx.beginPath();
+      for (let j = 0; j < 8; j++) { const aa = j / 8 * Math.PI * 2, rr = j % 2 ? 2 : 5; ctx.lineTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr); }
+      ctx.fill();
+    }
+  }
+
+  // Bewegungsspuren bei hohem Tempo
+  drawTrails(s, dt) {
+    const { ctx } = this;
+    const seen = new Set();
+    for (const p of s.p) {
+      if (p.st !== 'alive') continue;
+      seen.add(p.id);
+      let tr = this.trails.get(p.id);
+      if (!tr) { tr = []; this.trails.set(p.id, tr); }
+      const fast = Math.hypot(p.vx, p.vy) > 520 || p.dk > 0.4;
+      if (fast) tr.push({ x: p.x, y: p.y, r: p.r, life: 0.22 });
+      for (const t of tr) t.life -= dt;
+      while (tr.length && tr[0].life <= 0) tr.shift();
+      if (p.iv) continue;
+      for (const t of tr) {
+        ctx.globalAlpha = Math.max(0, t.life / 0.22) * 0.35;
+        ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(t.x, t.y, t.r * (0.6 + t.life * 1.5), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    for (const id of this.trails.keys()) if (!seen.has(id)) this.trails.delete(id);
+  }
+
+  // Kamera: im letzten Duell sanft auf die beiden zoomen, sonst ganze Insel
+  updateCamera(s, dt) {
+    let tx = 0, ty = 0, tz = 1;
+    const duel = s && s.duel && s.ph === 'play' ? s.p.filter(p => s.duel.includes(p.id) && p.st !== 'ghost') : [];
+    if (duel.length === 2) {
+      const [a, b] = duel;
+      const span = Math.max(Math.hypot(a.x - b.x, a.y - b.y) + 280, 360);
+      tz = Math.max(1, Math.min(1.45, 800 * 0.8 / span));
+      // nicht ganz auf die Mitte der beiden, damit die Insel im Bild bleibt
+      tx = (a.x + b.x) / 2 * 0.7; ty = (a.y + b.y) / 2 * 0.7;
+    }
+    const k = Math.min(1, dt * 2.5);
+    this.cam.x += (tx - this.cam.x) * k;
+    this.cam.y += (ty - this.cam.y) * k;
+    this.cam.z += (tz - this.cam.z) * k;
   }
 
   // Hitboxen für die Debug-Ansicht (?debug)
@@ -407,26 +555,41 @@ export class View {
     ctx.fillText(emoji, x, y - 17);
   }
 
-  drawEyes(p, glow, dizzy) {
+  // mood: 'normal' | 'strain' (Aufladen/Stemmen) | 'panic' (Kante) | 'dizzy' (benommen/fallend) | 'glow' (Stromausfall)
+  drawEyes(p, mood = 'normal') {
     const { ctx } = this;
     const r = p.r;
+    const glow = mood === 'glow';
     const fx = p.fx || 0, fy = p.fy || 1;
     const px = -fy, py = fx; // senkrecht zur Blickrichtung
     const ex = p.x + fx * r * 0.3, ey = p.y + fy * r * 0.3 - r * 0.1;
+    const eyeR = mood === 'panic' ? r * 0.3 : mood === 'strain' ? r * 0.2 : r * 0.24;
     for (const side of [-1, 1]) {
       const x = ex + px * side * r * 0.35, y = ey + py * side * r * 0.35;
       if (glow) { ctx.shadowColor = '#ffee55'; ctx.shadowBlur = 12; ctx.fillStyle = '#ffee55'; }
       else ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(x, y, r * 0.24, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, eyeR, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
-      if (dizzy) {
+      if (mood === 'dizzy') {
         ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
         const q = r * 0.13;
         ctx.beginPath(); ctx.moveTo(x - q, y - q); ctx.lineTo(x + q, y + q); ctx.moveTo(x + q, y - q); ctx.lineTo(x - q, y + q); ctx.stroke();
       } else {
         ctx.fillStyle = glow ? '#221' : '#1a1a2e';
-        ctx.beginPath(); ctx.arc(x + fx * r * 0.09, y + fy * r * 0.09, r * 0.12, 0, Math.PI * 2); ctx.fill();
+        const pr = mood === 'panic' ? r * 0.07 : r * 0.12;
+        ctx.beginPath(); ctx.arc(x + fx * r * 0.09, y + fy * r * 0.09, pr, 0, Math.PI * 2); ctx.fill();
       }
+      if (mood === 'strain') {
+        // entschlossene Augenbrauen
+        ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+        const outer = x < p.x ? -1 : 1;
+        ctx.beginPath(); ctx.moveTo(x + outer * r * 0.22, y - r * 0.38); ctx.lineTo(x - outer * r * 0.14, y - r * 0.22); ctx.stroke();
+      }
+    }
+    if (mood === 'panic') {
+      // offener Mund: „Oooh!“
+      ctx.fillStyle = '#3a1020';
+      ctx.beginPath(); ctx.ellipse(p.x + fx * r * 0.45, p.y + fy * r * 0.45 + r * 0.25, r * 0.16, r * 0.22, 0, 0, Math.PI * 2); ctx.fill();
     }
   }
 
@@ -474,8 +637,12 @@ export class View {
       ctx.fillStyle = f.color;
       const r = f.type === 'cloud' ? f.r * (1.6 - k) : f.r * k;
       ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.fill();
+    } else if (f.type === 'shard') {
+      ctx.translate(f.x, f.y); ctx.rotate(f.rot + (1 - k) * 6);
+      ctx.fillStyle = f.color;
+      ctx.beginPath(); ctx.moveTo(-f.r, -f.r * 0.4); ctx.lineTo(f.r, 0); ctx.lineTo(-f.r * 0.3, f.r * 0.6); ctx.closePath(); ctx.fill();
     } else if (f.type === 'text') {
-      ctx.font = 'bold 20px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `bold ${f.size || 20}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.5)';
       ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
     } else if (f.type === 'star') {
