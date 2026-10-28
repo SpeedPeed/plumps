@@ -235,6 +235,7 @@ export const sfx = {
   sink: () => { for (let i = 0; i < 6; i++) tone('sine', 300 + Math.random() * 300, 120, 0.2, 0.08, i * 0.08); noise(0.6, 0.2, 700, 0, 'lowpass', 300); },
   rise: () => { for (let i = 0; i < 4; i++) tone('sine', 300 + i * 150, 600 + i * 200, 0.12, 0.07, i * 0.07); },
   splash: () => { noise(0.4, 0.15, 1400, 0, 'lowpass', 500); tone('sine', 260, 90, 0.25, 0.15); },
+  levelup: () => [523, 659, 784, 1046, 1318].forEach((f, i) => { tone('triangle', f, f, 0.2, 0.18, i * 0.08); tone('sine', f * 2, f * 2, 0.12, 0.05, i * 0.08); }),
   // Zurückspulen vor der Wiederholung
   replay: () => { tone('sawtooth', 900, 200, 0.35, 0.06, 0, 2200); tone('sawtooth', 700, 150, 0.35, 0.05, 0.03, 2000); noise(0.35, 0.08, 3000, 0, 'bandpass', 2500, 3); tone('sine', 660, 660, 0.12, 0.1, 0.38); },
   duel: () => { tone('square', 196, 196, 0.25, 0.1, 0, 1800); tone('square', 147, 147, 0.5, 0.1, 0.28, 1800); tone('sine', 73, 73, 0.6, 0.25, 0.28); noise(0.6, 0.1, 300, 0.28); },

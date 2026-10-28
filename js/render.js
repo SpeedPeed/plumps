@@ -3,6 +3,7 @@
 import { unpackShapes } from './geometry.js';
 import { COLORS } from './sim.js';
 import { TEAMS } from './modes/team.js';
+import { TRAILS, DANCES } from './cosmetics.js';
 import { INK, drawIcon, drawHat, EMOTE_IDS } from './art/icons.js';
 import { THEMES, DEFAULT_WATER, materialFor, hash } from './art/themes.js';
 import { drawBody, drawFace, drawNameTag, hexA } from './art/blob.js';
@@ -228,6 +229,7 @@ export class View {
     const players = s.p.filter(p => p.st !== 'ghost').sort((a, b) => a.y - b.y);
     this.updateJiggle(s, dt);
     if (!this.low) this.drawTrails(s, dt);
+    this.emitTrails(s, dt);
     for (const p of players) this.drawBlobShadow(p);
     for (const p of players) this.drawBlob(p, s, myId, now);
 
@@ -687,12 +689,49 @@ export class View {
     if (p.st === 'falling' || p.wb) return 'panic';
     if (p.dz || p.sl) return 'dizzy';
     if (p.ch >= 0 || p.br) return 'strain';
-    if ((s.ph === 'roundEnd' && s.rw === p.id) || (s.ph === 'matchEnd' && s.ch === p.id)) return 'triumph';
+    if ((s.ph === 'roundEnd' && (s.rw === p.id || (s.rws || []).includes(p.id))) || (s.ph === 'matchEnd' && s.ch === p.id)) return 'triumph';
     if (s.cr.includes(p.id)) return 'smug';
     return 'normal';
   }
 
+  // Siegestanz: Rundensieger und Inselkönig tanzen (Kosmetik aus js/cosmetics.js)
   drawBlob(p, s, myId, now) {
+    const dancing = p.st === 'alive' && ((s.ph === 'roundEnd' && ((s.rws || []).includes(p.id) || s.rw === p.id)) || (s.ph === 'matchEnd' && s.ch === p.id));
+    if (!dancing) { this.drawBlobInner(p, s, myId, now); return; }
+    const { ctx } = this;
+    const id = DANCES[p.dn]?.id || 'huepf';
+    let dx = 0, dy = 0, rot = 0, sx = 1, sy = 1;
+    if (id === 'huepf') { const h = Math.abs(Math.sin(now * 7)); dy = -h * 18; sy = 0.9 + h * 0.15; sx = 2 - sy; }
+    else if (id === 'dreh') rot = now * 7;
+    else if (id === 'wackel') { rot = Math.sin(now * 10) * 0.35; dx = Math.sin(now * 5) * 8; }
+    else if (id === 'flip') { const u = (now % 1.2) / 0.55; if (u < 1) { rot = u * TAU; dy = -Math.sin(u * Math.PI) * 40; } }
+    else if (id === 'puls') { sx = sy = 1 + Math.abs(Math.sin(now * 5)) * 0.25; }
+    ctx.save();
+    ctx.translate(p.x + dx, p.y + dy); ctx.rotate(rot); ctx.scale(sx, sy); ctx.translate(-p.x, -p.y);
+    this.drawBlobInner(p, s, myId, now);
+    ctx.restore();
+  }
+
+  // Spuren: schnelle Blobs ziehen Funken, Blasen, Herzchen … hinter sich her
+  emitTrails(s, dt) {
+    this.trailAcc ||= new Map();
+    for (const p of s.p) {
+      if (!p.tr || p.st !== 'alive' || p.iv) continue;
+      const sp = Math.hypot(p.vx, p.vy);
+      if (sp < 170 && !p.dt) continue;
+      const acc = (this.trailAcc.get(p.id) || 0) + dt * (this.low ? 10 : 24) * Math.min(2, sp / 300);
+      let n = Math.floor(acc);
+      this.trailAcc.set(p.id, acc - n);
+      const kind = TRAILS[p.tr]?.id;
+      while (n-- > 0) {
+        const a = Math.random() * TAU, bx = p.x - p.vx / sp * p.r * 0.8 + Math.cos(a) * p.r * 0.4, by = p.y - p.vy / sp * p.r * 0.8 + Math.sin(a) * p.r * 0.4;
+        const life = 0.5 + Math.random() * 0.4;
+        this.fx.push({ type: 'trail', kind, x: bx, y: by, vx: (Math.random() - 0.5) * 40, vy: kind === 'blasen' ? -40 : (Math.random() - 0.5) * 40, life, max: life, r: 4 + Math.random() * 4, rot: Math.random() * TAU, hue: (performance.now() / 4) % 360 });
+      }
+    }
+  }
+
+  drawBlobInner(p, s, myId, now) {
     const { ctx } = this;
     const me = p.id === myId;
     let scale = 1, alpha = 1, sink = 0;
@@ -962,6 +1001,18 @@ export class View {
         ctx.lineJoin = 'round'; ctx.lineWidth = 6; ctx.strokeStyle = INK;
         ctx.strokeText(f.text, 0, 0); ctx.fillStyle = f.color; ctx.fillText(f.text, 0, 0);
         if (f.icon) drawIcon(ctx, f.icon, ctx.measureText(f.text).width / 2 + 14, 0, (f.size || 20) * 1.1);
+        break;
+      }
+      case 'trail': {
+        ctx.translate(f.x, f.y); ctx.rotate(f.rot + (1 - k) * 3);
+        const r = f.r * (0.5 + k * 0.5);
+        ctx.lineWidth = 2; ctx.strokeStyle = INK;
+        if (f.kind === 'funken') { ctx.fillStyle = '#FFE066'; ctx.beginPath(); for (let i = 0; i < 8; i++) { const rr = i % 2 ? r * 0.35 : r * 1.3, a = i * Math.PI / 4; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); }
+        else if (f.kind === 'blasen') { ctx.strokeStyle = 'rgba(234,247,255,0.9)'; ctx.beginPath(); ctx.arc(0, 0, r * 1.2, 0, TAU); ctx.stroke(); }
+        else if (f.kind === 'herzen') { ctx.fillStyle = '#FF5FA2'; ctx.beginPath(); ctx.moveTo(0, r); ctx.bezierCurveTo(-r * 1.6, -r * 0.2, -r * 0.7, -r * 1.3, 0, -r * 0.5); ctx.bezierCurveTo(r * 0.7, -r * 1.3, r * 1.6, -r * 0.2, 0, r); ctx.fill(); ctx.stroke(); }
+        else if (f.kind === 'regenbogen') { ctx.fillStyle = `hsl(${f.hue},90%,62%)`; ctx.beginPath(); ctx.arc(0, 0, r * 1.2, 0, TAU); ctx.fill(); }
+        else if (f.kind === 'sterne') { ctx.fillStyle = '#FFF6C9'; ctx.beginPath(); for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * 0.45 : r * 1.2, a = i * Math.PI / 5; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); }
+        else if (f.kind === 'konfetti') { ctx.fillStyle = ['#E8483C', '#4DB3EA', '#FFE066', '#5ED6A0', '#CC79A7'][Math.floor(f.hue / 7) % 5]; ctx.fillRect(-r, -r * 0.5, r * 2, r); }
         break;
       }
       case 'star':
