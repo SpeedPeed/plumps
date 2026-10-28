@@ -1,0 +1,74 @@
+// Alle Sounds werden live synthetisiert – keine Audiodateien nötig.
+
+let ctx = null;
+let master = null;
+export let muted = false;
+
+export function unlockAudio() {
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 0.5;
+    master.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+}
+
+export function toggleMute() {
+  muted = !muted;
+  if (master) master.gain.value = muted ? 0 : 0.5;
+  return muted;
+}
+
+function tone(type, f0, f1, dur, vol = 0.3, delay = 0) {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime + delay;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+function noise(dur, vol = 0.3, freq = 1000, delay = 0) {
+  if (!ctx || muted) return;
+  const t = ctx.currentTime + delay;
+  const len = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const f = ctx.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = freq;
+  const g = ctx.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(master);
+  src.start(t);
+}
+
+export const sfx = {
+  boing: (p = 0.5) => tone('sine', 180 + p * 200, 520 + p * 300, 0.18, 0.15 + p * 0.2),
+  dash: () => noise(0.15, 0.15, 2500),
+  plumps: () => { tone('sine', 300, 60, 0.35, 0.4); noise(0.4, 0.25, 800, 0.08); },
+  boom: () => { noise(0.6, 0.5, 600); tone('square', 90, 30, 0.4, 0.2); },
+  pups: () => { tone('sawtooth', 110, 55, 0.45, 0.18); tone('sawtooth', 95, 70, 0.3, 0.12, 0.05); },
+  bumper: () => tone('square', 880, 1320, 0.08, 0.1),
+  swap: () => { tone('triangle', 400, 900, 0.15, 0.2); tone('triangle', 900, 400, 0.15, 0.2, 0.15); },
+  potato: () => tone('triangle', 600, 300, 0.12, 0.15),
+  count: () => tone('sine', 520, 520, 0.12, 0.25),
+  go: () => tone('sine', 880, 880, 0.3, 0.3),
+  card: () => [0, 1, 2].forEach(i => tone('triangle', 400 + i * 200, 420 + i * 200, 0.12, 0.2, i * 0.08)),
+  win: () => [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.2, 0.25, i * 0.11)),
+  draw: () => tone('sawtooth', 300, 120, 0.6, 0.15),
+  regicide: () => [784, 622, 523].forEach((f, i) => tone('square', f, f, 0.15, 0.12, i * 0.1)),
+  champion: () => [523, 659, 784, 1046, 784, 1046].forEach((f, i) => tone('triangle', f, f, 0.25, 0.25, i * 0.14)),
+};
