@@ -196,6 +196,8 @@ Jede Datei in `js/modes/`, `js/cards/`, `js/items/` und `js/maps/` ist ein Objek
 
 ## Bekannte Grenzen
 
-- In seltenen Netzwerken (strenge Firmen- oder Mobilfunk-NAT) klappt die direkte Verbindung nicht. Dann hilft meistens WLAN statt mobiler Daten.
+- Über verschiedene Netze (z. B. DS-Lite/CGNAT beim Internetanbieter, Mobilfunk, Firmen-WLAN) klappt die direkte Verbindung manchmal nicht. Dann leitet ein **TURN-Server** die Daten um. Das Spiel probiert dafür mehrere freie öffentliche TURN-Server (ohne Gewähr, dass sie gerade laufen).
+  - **Einstellungen → Verbindung → „Verbindung testen“** zeigt, ob ein Umweg-Server erreichbar ist.
+  - Wenn nicht: Einen eigenen kostenlosen TURN-Zugang anlegen (z. B. bei metered.ca, kostenloses Konto) und Adresse, Benutzer und Passwort dort eintragen. Es reicht, wenn einer von beiden das macht; gespeichert wird nur im eigenen Browser.
 - Wer mitten in einer Runde beitritt, ist bis zur nächsten Runde ein Geist.
 - Wer die Verbindung verliert, kann (noch) nicht auf seinen alten Platz zurück – sein Bot spielt weiter.

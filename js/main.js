@@ -1,5 +1,5 @@
 import { Game, CARDS, MODES, MAPS, ITEMS, MAX_PLAYERS, HAT_COUNT, COLORS, BOT_LEVELS } from './sim.js';
-import { Host, Client } from './net.js';
+import { Host, Client, customTurn, setCustomTurn, testConnection } from './net.js';
 import { View } from './render.js';
 import { initInput, readInput } from './input.js';
 import { sfx, unlockAudio, toggleMute, chargeStart, chargeStop, setVolumes, setMusic, babble } from './audio.js';
@@ -131,6 +131,7 @@ $('btnJoin').onclick = () => {
   net = new Client(code, {
     onOpen: () => net.send({ t: 'join', name, hat: myHat, ...equipped() }),
     onError: (msg) => menuError(kicked ? 'Der Host hat dich aus dem Raum geworfen.' : msg),
+    onStatus: (st) => { if (st === 'checking') $('menuErr').textContent = 'Raum gefunden – suche einen Weg zum Host …'; },
     onData: (msg) => {
       if (msg.t === 'kicked') { kicked = true; return; }
       if (msg.t === 'welcome') {
@@ -312,6 +313,8 @@ function syncSettingsUI() {
     $(id).nextElementSibling.textContent = Math.round(settings[key] * 100);
   }
   $('optShake').checked = settings.shake;
+  const t = customTurn() || {};
+  $('turnUrl').value = t.url || ''; $('turnUser').value = t.user || ''; $('turnPass').value = t.pass || '';
 }
 function saveSettings() {
   settings.music = $('volMusic').value / 100;
@@ -325,7 +328,27 @@ function saveSettings() {
 for (const id of ['volMusic', 'volSfx', 'optShake']) $(id).oninput = saveSettings;
 $('volSfx').onchange = () => { unlockAudio(); sfx.boing(0.6); };
 for (const b of document.querySelectorAll('.settingsBtn')) b.onclick = () => { unlockAudio(); syncSettingsUI(); $('settings').classList.add('on'); };
-$('btnSettingsClose').onclick = () => $('settings').classList.remove('on');
+const saveTurn = () => setCustomTurn({ url: $('turnUrl').value.trim(), user: $('turnUser').value.trim(), pass: $('turnPass').value.trim() });
+$('btnSettingsClose').onclick = () => { saveTurn(); $('settings').classList.remove('on'); };
+
+// Verbindungstest: zeigt, ob dieser Browser direkt und/oder über einen TURN-Server erreichbar ist
+$('btnNetTest').onclick = async () => {
+  saveTurn();
+  $('btnNetTest').disabled = true;
+  $('netResult').textContent = 'Teste … (dauert ein paar Sekunden)';
+  try {
+    const r = await testConnection();
+    const relays = [...r.relays].join(', ');
+    $('netResult').innerHTML = r.relay
+      ? `<b class="ok">Umweg-Server erreichbar</b>${relays ? ` (${esc(relays)})` : ''}. Online spielen sollte klappen – auch über verschiedene Netze.`
+      : r.srflx
+        ? '<b class="warn">Kein Umweg-Server erreichbar.</b> Direkt geht es oft trotzdem – aber nicht, wenn eines der Netze streng ist (z. B. DS-Lite, Mobilfunk, Firma). Dann hilft ein eigener TURN-Zugang (siehe unten).'
+        : '<b class="warn">Dein Netz blockiert Online-Verbindungen fast komplett</b> (Firmen-/Schul-WLAN?). Ein eigener TURN-Zugang über Port 443 kann helfen, sonst ein anderes Netz.';
+  } catch {
+    $('netResult').textContent = 'Test nicht möglich – dein Browser kann kein WebRTC.';
+  }
+  $('btnNetTest').disabled = false;
+};
 
 // ---------- Schleifen ----------
 

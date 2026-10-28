@@ -177,6 +177,16 @@
       <label class="slider">Musik <input id="volMusic" type="range" min="0" max="100" step="5"><output></output></label>
       <label class="slider">Effekte <input id="volSfx" type="range" min="0" max="100" step="5"><output></output></label>
       <label class="check"><input id="optShake" type="checkbox"> Bildschirm wackeln bei Treffern</label>
+      <details class="netbox">
+        <summary>Verbindung (wenn Online nicht klappt)</summary>
+        <p>Im selben WLAN klappt es immer. Über verschiedene Netze braucht es manchmal einen <b>Umweg-Server (TURN)</b>. Mit dem Test seht ihr, ob einer erreichbar ist – am besten machen ihn beide.</p>
+        <button id="btnNetTest" class="btn">Verbindung testen</button>
+        <p id="netResult" class="netresult"></p>
+        <p>Eigener TURN-Zugang (z. B. kostenlos bei metered.ca). Es reicht, wenn ihn einer von beiden einträgt. Wird nur in diesem Browser gespeichert.</p>
+        <label class="field small">TURN-Adresse(n) <input id="turnUrl" placeholder="turn:…:80, turns:…:443?transport=tcp" autocomplete="off" autocapitalize="off"></label>
+        <label class="field small">Benutzername <input id="turnUser" autocomplete="off" autocapitalize="off"></label>
+        <label class="field small">Passwort <input id="turnPass" autocomplete="off" autocapitalize="off"></label>
+      </details>
       <button id="btnSettingsClose" class="btn big">Fertig</button>
     </div>
   </section>

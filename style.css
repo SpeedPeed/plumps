@@ -279,6 +279,14 @@ body.replaying #cv { filter: saturate(.75) contrast(1.05); }
   #replayTag { left: 12px; transform: none; font-size: 14px; letter-spacing: 1px; padding: 4px 10px; top: max(18px, env(safe-area-inset-top)); }
 }
 
+/* ---------- Verbindungshilfe in den Einstellungen ---------- */
+.netbox { background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 8px 12px; font-size: 13px; }
+.netbox summary { font-weight: 800; cursor: pointer; }
+.netbox p { margin: 8px 0; line-height: 1.35; }
+.netbox .field { margin-top: 6px; }
+.netresult:empty { display: none; }
+.netresult .ok { color: #1E8A5A; } .netresult .warn { color: #C2362C; }
+
 /* ---------- Profil, XP und Garderobe ---------- */
 .profilebtn { display: flex; align-items: center; gap: 8px; justify-content: flex-start; flex-wrap: wrap; }
 .profilebtn .av { width: 36px; height: 36px; margin: -6px 0; }
