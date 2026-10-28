@@ -224,5 +224,7 @@ export const sfx = {
   save: () => { tone('triangle', 420, 900, 0.12, 0.16); tone('triangle', 900, 1250, 0.12, 0.13, 0.1); noise(0.15, 0.05, 3000, 0, 'highpass'); },
   hit: (p = 0.5) => { noise(0.2, 0.25 + p * 0.25, 2000, 0, 'lowpass', 300); tone('sine', 220, 60, 0.28, 0.28 + p * 0.18); tone('square', 120, 50, 0.12, 0.08 * p, 0, 600); },
   ko: () => { tone('sawtooth', 240, 110, 0.6, 0.1, 0.12, 1500); tone('sawtooth', 300, 140, 0.6, 0.07, 0.12, 1500); noise(0.8, 0.1, 500, 0.1, 'lowpass', 150); },
+  // Zurückspulen vor der Wiederholung
+  replay: () => { tone('sawtooth', 900, 200, 0.35, 0.06, 0, 2200); tone('sawtooth', 700, 150, 0.35, 0.05, 0.03, 2000); noise(0.35, 0.08, 3000, 0, 'bandpass', 2500, 3); tone('sine', 660, 660, 0.12, 0.1, 0.38); },
   duel: () => { tone('square', 196, 196, 0.25, 0.1, 0, 1800); tone('square', 147, 147, 0.5, 0.1, 0.28, 1800); tone('sine', 73, 73, 0.6, 0.25, 0.28); noise(0.6, 0.1, 300, 0.28); },
 };

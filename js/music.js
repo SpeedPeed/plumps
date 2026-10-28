@@ -8,6 +8,9 @@ const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // Akkordfolge I – V – vi – IV in C-Dur (MIDI-Grundtöne)
 const PROG = [[48, [60, 64, 67]], [43, [59, 62, 67]], [45, [57, 60, 64]], [41, [57, 60, 65]]];
 const PENTA = [72, 74, 76, 79, 81, 84, 86, 88];
+// Finale: a-Moll i – VI – III – V, harmonisch Moll für die Melodie
+const PROG_FINAL = [[45, [57, 60, 64]], [41, [57, 60, 65]], [48, [55, 60, 64]], [40, [56, 59, 64]]];
+const MINOR = [69, 71, 72, 74, 76, 77, 80, 81];
 
 export class Music {
   constructor(ctx, out) {
@@ -24,7 +27,7 @@ export class Music {
 
   rnd() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296; }
 
-  // scene: 'menu' | 'play' | 'pick' | 'win' | 'off'; level: 0..3 (nur bei 'play')
+  // scene: 'menu' | 'play' | 'final' | 'pick' | 'win' | 'off'; level: 0..3 (bei 'play' und 'final')
   set(scene, level = 0) {
     if (scene === this.scene && level === this.level) return;
     const changed = scene !== this.scene;
@@ -49,6 +52,7 @@ export class Music {
     if (this.scene === 'menu') return 100;
     if (this.scene === 'pick') return 120;
     if (this.scene === 'win') return 108;
+    if (this.scene === 'final') return this.level >= 3 ? 150 : 140;
     return [112, 116, 126, 136][this.level] || 116;
   }
 
@@ -71,6 +75,22 @@ export class Music {
       if (s16 % 2 === 0) this.pluck(NOTE(chord[(s16 / 2) % 3] + 12), t, 0.06, 0.16);
       if (s16 === 0) this.bass(NOTE(bass), t, 0.12);
       if (s16 % 4 === 2) this.hat(t, 0.025);
+      return;
+    }
+
+    if (sc === 'final') {
+      // Finale: Moll, treibender Achtel-Bass, Pauken auf jedem Viertel, ständige Melodie
+      const [fb, fc] = PROG_FINAL[bar % 4];
+      if (s16 % 2 === 0) this.bass(NOTE(fb + (s16 % 4 === 2 ? 12 : 0)), t, 0.13);
+      if (s16 % 4 === 2) fc.forEach((n, i) => this.pluck(NOTE(n), t + i * 0.01, 0.04, 0.16));
+      if (s16 % 4 === 0) this.kick(t, 0.34);
+      if (s16 === 4 || s16 === 12 || (L >= 3 && s16 === 14)) this.snare(t, 0.16);
+      this.hat(t, s16 % 2 ? 0.025 : 0.045);
+      if ([0, 3, 6, 8, 11, 14].includes(s16) || (L >= 3 && s16 % 2 === 0)) {
+        const i = (bar * 3 + s16) % MINOR.length;
+        this.marimba(NOTE(MINOR[(i + Math.floor(this.rnd() * 3)) % MINOR.length]), t, 0.07);
+      }
+      if (s16 === 0 && bar % 2 === 0) this.osc('sawtooth', NOTE(fb + 24), t, 0.9, 0.025, 1400); // Bläser-Fläche
       return;
     }
 
