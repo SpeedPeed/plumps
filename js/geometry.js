@@ -1,25 +1,5 @@
-// Inselkarten. Eine Insel ist eine Vereinigung aus Kreisen und (gedrehten) Rechtecken,
-// minus Löcher. Karten können sich drehen oder Teile im Kreis fahren lassen.
-
-const TAU = Math.PI * 2;
-const ring = (n, dist, r, extra = {}) => Array.from({ length: n }, (_, i) => ({ k: 'c', x: Math.cos(i / n * TAU) * dist, y: Math.sin(i / n * TAU) * dist, r, ...extra }));
-
-export const MAPS = {
-  rund:      { name: 'Rundinsel',      emoji: '🏝️', shapes: [{ k: 'c', x: 0, y: 0, r: 300 }] },
-  quadrat:   { name: 'Kistenland',     emoji: '📦', shapes: [{ k: 'r', x: 0, y: 0, w: 470, h: 470 }] },
-  kreuz:     { name: 'Drehkreuz',      emoji: '✳️', moving: true, angle: (t) => t * 0.25,
-               shapes: [{ k: 'r', x: 0, y: 0, w: 600, h: 200 }, { k: 'r', x: 0, y: 0, w: 200, h: 600 }, { k: 'c', x: 0, y: 0, r: 160 }] },
-  bruecke:   { name: 'Brückeninseln',  emoji: '🌉', shapes: [{ k: 'c', x: -185, y: 0, r: 140 }, { k: 'c', x: 185, y: 0, r: 140 }, { k: 'r', x: 0, y: 0, w: 300, h: 100 }] },
-  archipel:  { name: 'Archipel',       emoji: '🏖️', shapes: [{ k: 'c', x: 0, y: 0, r: 150 }, ...ring(6, 205, 100)] },
-  ring:      { name: 'Ringinsel',      emoji: '⭕', shapes: [{ k: 'c', x: 0, y: 0, r: 300 }], holes: [{ x: 0, y: 0, r: 130 }] },
-  karussell: { name: 'Karussell',      emoji: '🎠', moving: true,
-               shapes: [{ k: 'c', x: 0, y: 0, r: 170 }, ...[0, 1, 2].map(i => ({ k: 'c', r: 100, orbit: { r: 220, s: 0.35, ph: i * TAU / 3 } }))] },
-  stern:     { name: 'Seestern',       emoji: '⭐', shapes: [{ k: 'c', x: 0, y: 0, r: 150 },
-               ...[0, 1, 2, 3, 4].map(i => { const a = i / 5 * TAU - Math.PI / 2; return { k: 'r', x: Math.cos(a) * 180, y: Math.sin(a) * 180, w: 250, h: 130, a }; })] },
-  knolle:    { name: 'Kartoffelinsel', emoji: '🥔', shapes: [{ k: 'c', x: 0, y: 0, r: 190 }, { k: 'c', x: 120, y: -110, r: 140 }, { k: 'c', x: -140, y: 90, r: 130 }, { k: 'c', x: 60, y: 150, r: 110 }, { k: 'c', x: -120, y: -150, r: 100 }] },
-  wippe:     { name: 'Wippe',          emoji: '⚖️', moving: true, angle: (t) => Math.sin(t * 0.7) * 0.8, shapes: [{ k: 'r', x: 0, y: 0, w: 600, h: 240 }] },
-};
-export const MAP_IDS = Object.keys(MAPS);
+// Geometrie der Inseln: Eine Insel ist eine Vereinigung aus Kreisen und
+// (gedrehten) Rechtecken, minus Löcher. Die Inseln selbst stehen in js/maps/.
 
 // Absolute Lage aller Formen zum Zeitpunkt t, skaliert mit k (Schrumpfen)
 export function poseShapes(map, t, k) {

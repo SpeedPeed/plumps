@@ -1,5 +1,5 @@
 // Zeichnet einen (interpolierten) Snapshot auf das Canvas.
-import { unpackShapes } from './maps.js';
+import { unpackShapes } from './geometry.js';
 import { COLORS, ITEMS, HATS, EMOTES } from './sim.js';
 
 const VIEW_R = 400; // so viel Welt muss sichtbar sein

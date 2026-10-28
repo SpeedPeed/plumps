@@ -1,5 +1,4 @@
-import { Game, CARDS, MODES, ITEMS, HATS, EMOTES, MAX_PLAYERS } from './sim.js';
-import { MAPS } from './maps.js';
+import { Game, CARDS, MODES, MAPS, ITEMS, HATS, EMOTES, MAX_PLAYERS } from './sim.js';
 import { Host, Client } from './net.js';
 import { View } from './render.js';
 import { initInput, readInput } from './input.js';
@@ -380,17 +379,6 @@ function setHTML(id, html) {
 }
 function show(id, on) { $(id).classList.toggle('hidden', !on); }
 
-function metric(s, p, totalCells) {
-  switch (s.mo) {
-    case 'leben': return p.lv > 0 ? '❤️'.repeat(p.lv) : '💀';
-    case 'huegel': return `<span class="bar"><i style="width:${Math.round(p.m * 100)}%"></i></span>`;
-    case 'muenzen': return `🪙 ${p.m}`;
-    case 'farbe': return `🎨 ${totalCells ? Math.round(p.m / totalCells * 100) : 0}%`;
-    case 'fangen': return `🧟 ${p.m.toFixed(1)}s`;
-    default: return '';
-  }
-}
-
 function updateUI(s) {
   const amHost = mode !== 'client';
   const me = s.p.find(p => p.id === myId);
@@ -422,9 +410,8 @@ function updateUI(s) {
 
   // Punktestand
   const sorted = [...s.p].sort((a, b) => b.s - a.s);
-  const totalCells = s.mo === 'farbe' ? s.p.reduce((n, p) => n + p.m, 0) : 0;
   setHTML('scores', `<li class="goal">Runde ${s.rd} · Ziel: ${s.tg} Punkte</li>` + sorted.map(p =>
-    `<li class="${p.st !== 'alive' && s.ph === 'play' ? 'dead' : ''}"><span class="dot" style="background:${p.c}"></span>${s.cr.includes(p.id) ? '👑' : ''}${esc(p.n)}${p.st === 'ghost' && s.ph === 'play' ? ' 👻' : ''} <span class="pips">${'●'.repeat(Math.min(p.s, 12))}</span>${inRound ? `<span class="metric">${metric(s, p, totalCells)}</span>` : ''}</li>`).join(''));
+    `<li class="${p.st !== 'alive' && s.ph === 'play' ? 'dead' : ''}"><span class="dot" style="background:${p.c}"></span>${s.cr.includes(p.id) ? '👑' : ''}${esc(p.n)}${p.st === 'ghost' && s.ph === 'play' ? ' 👻' : ''} <span class="pips">${'●'.repeat(Math.min(p.s, 12))}</span>${inRound ? `<span class="metric">${md.hudMetric?.(p, s) || ''}</span>` : ''}</li>`).join(''));
 
   // Modus, Insel, Karte, Restzeit
   const card = s.c && CARDS[s.c];
