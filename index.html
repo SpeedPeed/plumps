@@ -40,7 +40,8 @@
             <li><b>Stein-Schere-Papier:</b> Dash schlägt Herumstehen · Stemmen schlägt Dash · voller Dash bricht durchs Stemmen.</li>
             <li><b>Kante:</b> Knapp drüber? Gegensteuern oder zurückdashen – dann bist du gerettet.</li>
             <li><b>Geister:</b> Rausgeflogen? Mit <b>Pups</b> (Leertaste) Lebende wegpusten.</li>
-            <li><b>Chaos-Karte:</b> Wer hinten liegt, wählt, was die nächste Runde verändert.</li>
+            <li><b>Chaos-Karte:</b> Wer hinten liegt, wählt, was die nächste Runde verändert. Bis dahin dürfen alle schon frei herumschwabbeln.</li>
+            <li><b>Finale:</b> Mit Matchball musst du eine Runde „Letzter Blob“ gewinnen. Sonst geht's normal weiter.</li>
             <li><b>Königsmord:</b> Wer den Führenden (Krone) runterschubst, kriegt +1.</li>
             <li><b>Power-ups</b> in Seifenblasen: einfach drüberlaufen.</li>
             <li><b>Emotes:</b> Tasten 1–5.</li>
@@ -64,6 +65,9 @@
         <div class="hatpreview"><img id="hatShow" alt=""><span id="hatName"></span></div>
         <button id="hatNext" class="btn mini">▶</button>
       </div>
+      <div id="colorRow" class="colorrow" aria-label="Farbe wählen"></div>
+      <p id="lobbySettings" class="lobbyset"></p>
+      <button id="btnReady" class="btn big">Bereit!</button>
       <div id="hostCtl">
         <div class="row">
           <button id="btnBotAdd" class="btn"><i data-icon="bot"></i>+ Bot</button>
@@ -92,6 +96,7 @@
     <div id="banner"></div>
     <div id="hint"></div>
     <div id="ko"></div>
+    <div id="replayTag"><span class="rec"></span>WIEDERHOLUNG</div>
     <div id="toasts"></div>
     <div id="emotes"></div>
     <div id="topBtns">
@@ -101,14 +106,13 @@
     </div>
   </section>
 
-  <!-- Kartenwahl -->
-  <section id="pick" class="screen">
-    <div class="pickwrap">
-      <h2 id="pickTitle"></h2>
-      <p id="pickSub" class="picksub"></p>
-      <div id="pickCards"></div>
-      <div id="pickTimer"></div>
-    </div>
+  <!-- Zwischen den Runden: Kartenwahl bzw. Finale-Ansage, Zwischenstand – darunter schwabbeln alle frei -->
+  <section id="pick" class="pickpanel hidden">
+    <h2 id="pickTitle"></h2>
+    <p id="pickSub" class="picksub"></p>
+    <div id="pickCards"></div>
+    <div id="pickBar"><i></i></div>
+    <ol id="standings"></ol>
   </section>
 
   <!-- Matchende -->

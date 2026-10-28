@@ -1,4 +1,4 @@
-import { Game, CARDS, MODES, MAPS, ITEMS, MAX_PLAYERS, HAT_COUNT } from './sim.js';
+import { Game, CARDS, MODES, MAPS, ITEMS, MAX_PLAYERS, HAT_COUNT, COLORS, BOT_LEVELS } from './sim.js';
 import { Host, Client } from './net.js';
 import { View } from './render.js';
 import { initInput, readInput } from './input.js';
@@ -28,6 +28,9 @@ let localEvents = [];
 let netEvents = [];
 let botCounter = 0;
 const pings = {};         // Ping in ms: pings.me (Client) bzw. pings[spielerId] (Host)
+let snapLog = [];          // die letzten ~12 s an Snapshots (für die Wiederholung)
+let replay = null;        // läuft gerade eine Wiederholung?
+let kicked = false;
 
 // ---------- Gespeicherte Einstellungen ----------
 
@@ -105,9 +108,12 @@ $('btnHost').onclick = () => {
     },
     onError: (msg) => menuError(msg),
     onData: hostReceive,
-    onLeave: (id) => { game.removePlayer(id); },
+    onLeave: (id) => { if (game.phase === 'lobby') game.removePlayer(id); else game.botify(id); },
   });
 };
+
+// Tab zu: dem Host Bescheid sagen, damit sofort ein Bot übernimmt
+addEventListener('pagehide', () => { if (mode === 'client' && net) net.send({ t: 'bye' }); });
 
 $('btnJoin').onclick = () => {
   unlockAudio();
@@ -120,8 +126,9 @@ $('btnJoin').onclick = () => {
   mode = 'client';
   net = new Client(code, {
     onOpen: () => net.send({ t: 'join', name, hat: myHat }),
-    onError: (msg) => menuError(msg),
+    onError: (msg) => menuError(kicked ? 'Der Host hat dich aus dem Raum geworfen.' : msg),
     onData: (msg) => {
+      if (msg.t === 'kicked') { kicked = true; return; }
       if (msg.t === 'welcome') {
         myId = msg.id;
         $('roomCode').textContent = code;
@@ -139,6 +146,7 @@ $('btnJoin').onclick = () => {
         if (msg.mo !== 'farbe' || msg.ph === 'lobby') lastGrid = null;
         snaps.push({ at: performance.now(), s: msg });
         if (snaps.length > 30) snaps.shift();
+        remember(msg);
         for (const e of msg.ev) handleEvent(e, msg);
       }
     },
@@ -180,6 +188,12 @@ function hostReceive(id, msg) {
     game.setHat(id, msg.h | 0);
   } else if (msg.t === 'emo') {
     game.emote(id, msg.i | 0);
+  } else if (msg.t === 'ready') {
+    game.setReady(id, msg.v);
+  } else if (msg.t === 'color') {
+    game.setColor(id, msg.ci | 0);
+  } else if (msg.t === 'bye') {
+    net.drop(id);
   } else if (msg.t === 'ping') {
     net.send(id, { t: 'pong', c: msg.c });
   } else if (msg.t === 'pong') {
@@ -218,6 +232,29 @@ window.addEventListener('keydown', (e) => {
   const m = /^Digit([1-5])$/.exec(e.code);
   if (m) sendEmote(+m[1] - 1);
 });
+
+// Lobby: bereit melden, Farbe wählen, (als Host) Spieler rauswerfen
+let myReady = false;
+$('btnReady').onclick = () => {
+  myReady = !myReady;
+  if (mode === 'client') net.send({ t: 'ready', v: myReady });
+};
+$('colorRow').innerHTML = COLORS.map((c, i) => `<button data-ci="${i}" title="Farbe ${i + 1}"><img src="${avatarURL(c, i, 0)}" alt=""></button>`).join('');
+$('colorRow').onclick = (e) => {
+  const b = e.target.closest('button');
+  if (!b || b.classList.contains('taken')) return;
+  const ci = +b.dataset.ci;
+  if (mode === 'client') net.send({ t: 'color', ci });
+  else if (game) game.setColor(myId, ci);
+};
+$('lobbyList').onclick = (e) => {
+  const b = e.target.closest('.kick');
+  if (!b || !game || mode === 'client') return;
+  const id = b.dataset.id, p = game.players.get(id);
+  if (!p) return;
+  if (!p.bot && net) { net.send(id, { t: 'kicked' }); setTimeout(() => net.kick(id), 150); }
+  game.removePlayer(id);
+};
 
 $('btnBotAdd').onclick = () => game && addBot();
 $('btnBotDel').onclick = () => {
@@ -315,11 +352,13 @@ function hostTick() {
     game.step(DT);
     const ev = game.drainEvents();
     if (ev.length) { localEvents.push(...ev); netEvents.push(...ev); }
-    if (++tickN % 2 === 0 && mode === 'host') {
+    if (++tickN % 2 === 0) {
       // Das Farbkampf-Raster ist groß – nur jedes dritte Paket schickt es mit
       const withGrid = game.gridDirty && tickN % 6 === 0;
-      if (withGrid) game.gridDirty = false;
-      net.broadcast(game.snapshot(netEvents, withGrid));
+      if (withGrid && mode === 'host') game.gridDirty = false;
+      const snap = game.snapshot(netEvents, withGrid);
+      if (mode === 'host') net.broadcast(snap);
+      remember(snap);
       netEvents = [];
     }
   }
@@ -334,10 +373,12 @@ function leave() {
   cancelAnimationFrame(rafId);
   net = game = simWorker = null;
   mode = myId = current = lastGrid = null;
-  snaps = []; localEvents = []; netEvents = [];
+  snaps = []; localEvents = []; netEvents = []; snapLog = []; replay = null; kicked = false;
+  document.body.classList.remove('replaying');
   setBusy(false);
-  for (const id of ['lobby', 'pick', 'end']) screen(id, false);
-  for (const id of ['hud', 'touch']) $(id).classList.add('hidden');
+  for (const id of ['lobby', 'end']) screen(id, false);
+  for (const id of ['hud', 'touch', 'pick']) $(id).classList.add('hidden');
+  document.body.classList.remove('picking');
   screen('menu', true);
   $('menuErr').textContent = '';
   history.replaceState(null, '', location.pathname);
@@ -372,6 +413,49 @@ function interpolated() {
   return out;
 }
 
+// ---------- Wiederholung des Rauswurfs ----------
+
+function remember(snap) {
+  snapLog.push(snap);
+  const oldest = snap.tk - 12 * 60;
+  while (snapLog.length && snapLog[0].tk < oldest) snapLog.shift();
+}
+
+function startReplay(info) {
+  const frames = snapLog.filter(h => h.tk >= info.from && h.tk <= info.to);
+  if (frames.length < 4) return;
+  replay = { frames, info, start: performance.now(), seen: 0 };
+  document.body.classList.add('replaying');
+  sfx.replay();
+  const s = frames[frames.length - 1];
+  koText(info.a ? KO_TEXTS[koN++ % KO_TEXTS.length](nameOf(s, info.a), nameOf(s, info.v)) : `<b>${nameOf(s, info.v)}</b> plumpst ganz allein!`);
+}
+
+// Liefert das Bild der Wiederholung zum aktuellen Zeitpunkt (oder null, wenn sie vorbei ist)
+function replayFrame() {
+  const { frames, info, start } = replay;
+  const tk = info.from + (performance.now() - start) / 1000 * info.speed * 60;
+  if (tk > info.to) { replay = null; view.focus = null; document.body.classList.remove('replaying'); return null; }
+  let i = 0;
+  while (i < frames.length - 2 && frames[i + 1].tk <= tk) i++;
+  const a = frames[i], b = frames[i + 1] || a;
+  // Effekte der abgespielten Bilder noch einmal zeigen (ohne Ton, bis auf den Plumps)
+  for (; replay.seen <= i; replay.seen++) {
+    for (const e of frames[replay.seen].ev || []) {
+      if (['plumps', 'boom', 'hit', 'counter', 'break', 'boing', 'dash', 'punch'].includes(e.k)) view.addEvent(e, frames[replay.seen]);
+      if (e.k === 'plumps' && e.id === info.v) sfx.plumps();
+    }
+  }
+  const k = b.tk > a.tk ? Math.max(0, Math.min(1, (tk - a.tk) / (b.tk - a.tk))) : 0;
+  const prev = new Map(a.p.map(p => [p.id, p]));
+  view.focus = { x: info.x, y: info.y };
+  return {
+    ...b,
+    ph: 'play', tl: null,
+    p: b.p.map(p => { const q = prev.get(p.id); return q && q.st === p.st ? { ...p, x: lerp(q.x, p.x, k), y: lerp(q.y, p.y, k), f: lerp(q.f, p.f, k) } : p; }),
+  };
+}
+
 function render(now, dt) {
   let s;
   if (mode === 'client') s = interpolated();
@@ -381,15 +465,19 @@ function render(now, dt) {
     for (const e of evs) handleEvent(e, s);
   }
   if (s) { current = s; updateUI(s); updateMusic(s); watchEmotes(s); }
-  view.draw(current, myId, dt, now / 1000);
+  // Gäste sehen den Snapshot leicht verzögert – die Wiederholung startet evtl. noch in 'play'
+  if (replay && current?.ph !== 'roundEnd' && current?.ph !== 'play') { replay = null; view.focus = null; document.body.classList.remove('replaying'); }
+  const shown = replay ? replayFrame() || current : current;
+  view.draw(shown, myId, dt, now / 1000);
   debug.frame(dt, current);
 }
 
 // Musik passt sich der Lage an: Kartenwahl, Spiel (schneller beim Schrumpfen und im Duell), Sieg
 function updateMusic(s) {
   if (s.ph === 'lobby') setMusic('menu');
-  else if (s.ph === 'cardPick' || s.ph === 'cardShow') setMusic('pick');
   else if (s.ph === 'matchEnd') setMusic('win');
+  else if (s.fi) setMusic('final', s.duel || s.sk ? 3 : 2);
+  else if (s.ph === 'pick') setMusic('pick');
   else setMusic('play', s.duel ? 3 : s.sk ? 2 : 1);
 }
 
@@ -445,7 +533,13 @@ function handleEvent(e, s) {
         ? '<b>DASH</b> antippen = kurz · <b>halten</b> = aufladen · <b>STEMMEN</b> fängt Dashes ab'
         : '<b>Leertaste</b> antippen = Dash · <b>halten</b> = aufladen · <b>Shift</b> = Stemmen (fängt Dashes ab)');
       break;
-    case 'card': sfx.card(); break;
+    case 'card': sfx.card(); if (e.by) toast(`${iconHTML(e.card)} <b>${nameOf(s, e.by)}</b> wählt ${CARDS[e.card].name}`); break;
+    case 'replay': startReplay(e); break;
+    case 'finale':
+      sfx.matchball();
+      koText('<b>FINALE!</b>');
+      break;
+    case 'botified': toast(`${iconHTML('bot')} <b>${nameOf(s, e.id)}</b> ist weg – ein Bot übernimmt`); break;
     case 'win': sfx.win(); babble(ciOf(s, e.id), 'yay'); break;
     case 'draw': sfx.draw(); break;
     case 'regicide': sfx.regicide(); toast(`${iconHTML('krone')} Königsmord! <b>${nameOf(s, e.id)}</b> +1`); break;
@@ -458,7 +552,6 @@ function handleEvent(e, s) {
     case 'respawn': if (mine) sfx.respawn(); break;
     case 'tag': sfx.tag(); if (mine) toast(`${iconHTML('glibber')} Du hast den Glibber! Rempel jemanden an!`); break;
     case 'zone': sfx.zone(); break;
-    case 'matchball': sfx.matchball(); toast(`${iconHTML('ausrufe')} Matchball für <b>${nameOf(s, e.id)}</b>!`); break;
     default:
   }
 }
@@ -532,9 +625,9 @@ function updateUI(s) {
 
   screen('lobby', inLobby);
   show('hud', !inLobby);
-  show('touch', !inLobby && isTouch && !['matchEnd', 'cardPick', 'cardShow'].includes(s.ph));
-  screen('pick', s.ph === 'cardPick' || s.ph === 'cardShow');
-  document.body.classList.toggle('picking', s.ph === 'cardPick' || s.ph === 'cardShow');
+  show('touch', !inLobby && isTouch && s.ph !== 'matchEnd');
+  show('pick', s.ph === 'pick');
+  document.body.classList.toggle('picking', s.ph === 'pick');
   screen('end', s.ph === 'matchEnd');
   show('emotes', !inLobby && s.ph !== 'matchEnd');
 
@@ -542,16 +635,36 @@ function updateUI(s) {
     show('hostCtl', amHost);
     show('waitHost', !amHost);
     show('shareRow', mode === 'host');
-    const list = s.p.map(p => `<li>${avatarHTML(p)}<span>${esc(p.n)}</span>${p.id === myId ? '<span class="you">DU</span>' : p.b ? `<span class="tagbot">${iconHTML('bot')}</span>` : ''}</li>`).join('');
+    show('btnReady', !amHost);
+    show('lobbySettings', !amHost);
+    const list = s.p.map(p => {
+      const host = p.id === 'host' || (mode === 'solo' && p.id === myId);
+      const status = p.b ? iconHTML('bot') : host ? '<span class="tagready">Host</span>' : p.rd ? '<span class="tagready">bereit</span>' : '<span class="tagwait">wartet</span>';
+      const kick = amHost && !host ? `<button class="btn kick" data-id="${esc(p.id)}" title="Rauswerfen">✕</button>` : '';
+      return `<li>${avatarHTML(p)}<span>${esc(p.n)}</span><span class="tags">${p.id === myId ? '<span class="you">DU</span>' : ''}${status}${kick}</span></li>`;
+    }).join('');
     const free = MAX_PLAYERS - s.p.length;
     setHTML('lobbyList', list + (free > 0 ? `<li class="free">… noch ${free} ${free === 1 ? 'Platz' : 'Plätze'} frei</li>` : ''));
     if (me) {
       const src = avatarURL(me.c, me.ci, me.h, 'normal', 96);
       if ($('hatShow').getAttribute('src') !== src) $('hatShow').src = src;
       $('hatName').textContent = HAT_NAMES[me.h] || '';
+      for (const b of $('colorRow').children) {
+        const ci = +b.dataset.ci;
+        b.classList.toggle('mine', me.ci === ci);
+        b.classList.toggle('taken', me.ci !== ci && s.p.some(p => p.ci === ci));
+      }
+      $('btnReady').classList.toggle('on', !!me.rd);
+      $('btnReady').textContent = me.rd ? 'Bereit ✓' : 'Bereit!';
+      myReady = !!me.rd;
     }
+    // Alle sehen die Einstellungen des Hosts
+    const set = s.set || {};
+    setHTML('lobbySettings', `Punkte zum Sieg: <b>${set.tg}</b> · Bots: <b>${BOT_LEVELS[set.bl]?.name || ''}</b> · Modi: <b>${set.mm ? 'alle im Wechsel' : 'nur „Letzter Blob“'}</b>`);
+    const humans = s.p.filter(p => !p.b && p.id !== 'host');
+    const ready = humans.filter(p => p.rd).length;
     $('btnStart').disabled = s.p.length < 2;
-    $('btnStart').textContent = s.p.length < 2 ? 'Warte auf Mitspieler …' : "Los geht's!";
+    $('btnStart').textContent = s.p.length < 2 ? 'Warte auf Mitspieler …' : ready < humans.length ? `Los geht's! (${ready}/${humans.length} bereit)` : "Los geht's!";
     $('btnBotAdd').disabled = s.p.length >= MAX_PLAYERS;
     return;
   }
@@ -576,7 +689,10 @@ function updateUI(s) {
 
   // Banner
   let banner = '';
-  if (s.ph === 'countdown') banner = `${Math.ceil(s.tm)}<small>${iconHTML(s.mo)} ${md.name} · ${mp.name}</small>`;
+  if (s.ph === 'countdown') {
+    const what = s.fi ? `${iconHTML('krone')} FINALE · ${mp.name}` : `${iconHTML(s.mo)} ${md.name} · ${mp.name}`;
+    banner = `${Math.ceil(s.tm)}<small>${what}</small>${card ? `<small class="cardline">${iconHTML(s.c)} ${card.name}</small>` : ''}`;
+  }
   else if (s.ph === 'play' && performance.now() < goUntil) banner = 'LOS!';
   else if (s.ph === 'roundEnd') banner = esc(s.msg) + (s.rw === myId ? '<small>Das warst DU!</small>' : '');
   if (setHTML('banner', banner)) { $('banner').classList.remove('pop'); void $('banner').offsetWidth; $('banner').classList.add('pop'); }
@@ -590,6 +706,7 @@ function updateUI(s) {
     else if (card && s.c === 'spiegel' && s.co && performance.now() < modeHintUntil + 3000) hint = `${iconHTML('spiegel')} Steuerung vertauscht – außer für ${nameOf(s, s.co)}`;
     else if (s.rd === 1 && !isTouch) hint = 'WASD bewegen · Leertaste tippen/halten = Dash · Shift = Stemmen';
   }
+  if (s.ph === 'pick') hint = 'Schwabbel schon mal herum – gleich geht\'s los!';
   setHTML('hint', hint);
 
   // Touch-Knöpfe
@@ -606,16 +723,19 @@ function updateUI(s) {
     bb.style.setProperty('--cd', Math.max(0, Math.min(1, me.bc || 0)));
   }
 
-  // Kartenwahl: echte Spielkarten
-  if (s.ph === 'cardPick' || s.ph === 'cardShow') {
-    const iPick = s.pk === myId && s.ph === 'cardPick';
-    const pickerName = s.pk ? nameOf(s, s.pk) : 'Der Zufall';
-    let title;
-    if (s.ph === 'cardShow') title = `${CARDS[s.c].name}!`;
-    else if (iPick) title = 'Du liegst hinten – wähl das Chaos!';
-    else title = `${pickerName} wählt das Chaos …`;
-    setHTML('pickTitle', title);
-    setHTML('pickSub', `Nächste Runde: ${iconHTML(s.mo)} ${md.name} auf ${mapIconHTML(s.mp)} ${mp.name}`);
+  // Zwischen den Runden: Kartenwahl bzw. Finale-Ansage, dazu der Zwischenstand
+  if (s.ph === 'pick') {
+    const iPick = s.pk === myId && !!s.op;
+    $('pick').classList.toggle('finale', !s.op);
+    if (!s.op) {
+      const mb = s.p.filter(p => p.s >= s.tg - 1);
+      const names = mb.map(p => `<b>${esc(p.n)}</b>`).join(' und ');
+      setHTML('pickTitle', 'FINALE!');
+      setHTML('pickSub', `${names} ${mb.length > 1 ? 'haben' : 'hat'} Matchball. Wer davon diese Runde gewinnt, ist Inselkönig!`);
+    } else {
+      setHTML('pickTitle', iPick ? 'Du liegst hinten – wähl das Chaos!' : `${s.pk ? nameOf(s, s.pk) : 'Der Zufall'} wählt das Chaos …`);
+      setHTML('pickSub', `Nächste Runde: ${iconHTML(s.mo)} ${md.name} auf ${mapIconHTML(s.mp)} ${mp.name}`);
+    }
     const key = (s.op || []).join() + iPick;
     if (cache.pickKey !== key) {
       cache.pickKey = key;
@@ -624,17 +744,14 @@ function updateUI(s) {
         const c = CARDS[id];
         const el = document.createElement('div');
         el.className = 'card' + (iPick ? ' mine' : '');
-        el.dataset.id = id;
-        el.innerHTML = `${iconHTML(id, 'corner tl')}${iconHTML(id, 'corner br')}<div class="art">${iconHTML(id, 'big')}</div><div class="txt"><b>${c.name}</b><span>${c.desc}</span></div>`;
+        el.innerHTML = `${iconHTML(id, 'corner tl')}${iconHTML(id, 'corner br')}<div class="art">${iconHTML(id)}</div><div class="txt"><b>${c.name}</b><span>${c.desc}</span></div>`;
         if (iPick) el.onclick = () => { if (mode === 'client') net.send({ t: 'pick', i }); else game.choose(myId, i); };
         $('pickCards').appendChild(el);
       });
     }
-    for (const el of $('pickCards').children) {
-      el.classList.toggle('chosen', s.ph === 'cardShow' && el.dataset.id === s.c);
-      el.classList.toggle('faded', s.ph === 'cardShow' && el.dataset.id !== s.c);
-    }
-    setHTML('pickTimer', s.ph === 'cardPick' ? `noch ${Math.ceil(s.tm)} s` : '');
+    const total = s.op ? T.CARD_PICK : T.FINALE_INTRO;
+    $('pickBar').firstElementChild.style.width = `${Math.max(0, Math.min(1, s.tm / total)) * 100}%`;
+    setHTML('standings', sorted.map(p => `<li class="${p.id === s.rw ? 'won' : ''} ${p.s >= s.tg - 1 ? 'mb' : ''}">${avatarHTML(p, p.id === s.rw ? 'triumph' : 'normal')}${p.s}</li>`).join(''));
   } else cache.pickKey = null;
 
   // Siegerehrung mit Podest
@@ -672,7 +789,7 @@ let idleLast = 0;
   const dt = Math.min(0.05, (now - idleLast) / 1000 || 0);
   idleLast = now;
   demo.step(dt);
-  if (demo.phase === 'cardPick') demo.choose(demo.picker, Math.floor(Math.random() * 3));
+  if (demo.phase === 'pick' && demo.options) demo.choose(demo.picker, Math.floor(Math.random() * 3));
   for (const e of demo.drainEvents()) view.addEvent(e, null);
   if (demo.round > 12) newDemo();
   view.draw(demo.snapshot([]), null, dt, now / 1000);

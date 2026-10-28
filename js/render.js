@@ -797,11 +797,14 @@ export class View {
 
   // ---------- Kamera & Debug ----------
 
-  // im letzten Duell sanft auf die beiden zoomen, sonst ganze Insel
+  // im letzten Duell sanft auf die beiden zoomen, in der Wiederholung auf den Schubser, sonst ganze Insel
   updateCamera(s, dt) {
     let tx = 0, ty = 0, tz = 1;
     const duel = s && s.duel && s.ph === 'play' ? s.p.filter(p => s.duel.includes(p.id) && p.st !== 'ghost') : [];
-    if (duel.length === 2) {
+    if (this.focus) {
+      // Wiederholung: auf den Moment des Schubsers zoomen
+      tz = 1.5; tx = this.focus.x * 0.8; ty = this.focus.y * 0.8;
+    } else if (duel.length === 2) {
       const [a, b] = duel;
       const span = Math.max(Math.hypot(a.x - b.x, a.y - b.y) + 280, 360);
       tz = Math.max(1, Math.min(1.45, 800 * 0.8 / span));

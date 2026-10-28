@@ -119,6 +119,7 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(255, 201, 60, 0.6); }
 #banner { position: absolute; top: 38%; left: 0; right: 0; text-align: center; font-family: 'Lilita One', sans-serif; font-size: clamp(40px, 11vw, 92px); line-height: 1.05; color: #fff; -webkit-text-stroke: 8px var(--ink); paint-order: stroke fill; transform: translateY(-50%); padding: 0 16px; text-shadow: 0 6px 0 var(--ink); }
 #banner small { display: block; font-size: 0.32em; -webkit-text-stroke: 5px var(--ink); text-shadow: 0 3px 0 var(--ink); margin-top: 8px; }
 #banner small img.ic { width: 1.3em; height: 1.3em; }
+#banner small.cardline { color: var(--sun); margin-top: 4px; }
 #banner.pop { animation: pop .45s var(--pop); }
 @keyframes pop { from { transform: translateY(-50%) scale(2); opacity: 0; } to { transform: translateY(-50%) scale(1); opacity: 1; } }
 #hint { position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink); padding: 7px 16px; border-radius: 999px; font-weight: 800; font-size: 14px; text-align: center; max-width: calc(100% - 32px); animation: popIn .35s var(--pop) both; }
@@ -138,38 +139,69 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(255, 201, 60, 0.6); }
 #emotes button img { width: 34px; height: 34px; }
 #emotes small { position: absolute; right: -4px; bottom: -6px; font-size: 10px; background: var(--ink); color: #fff; border-radius: 6px; padding: 0 4px; }
 
-/* ---------- Kartenwahl: echte Spielkarten ---------- */
-#pick { background: rgba(19, 64, 110, 0.55); }
-.pickwrap { display: flex; flex-direction: column; gap: 14px; align-items: center; width: 100%; max-width: 760px; margin: auto; }
-#pickTitle, .picksub { color: #fff; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; }
-#pickTitle { font-size: clamp(24px, 6vw, 34px); text-shadow: 0 4px 0 var(--ink); }
-.picksub { font-family: 'Lilita One', sans-serif; font-size: 18px; margin: -6px 0 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
-.picksub img.ic { width: 28px; height: 28px; }
-#pickCards { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; perspective: 900px; }
-.card { position: relative; width: 190px; height: 260px; background: var(--paper); border: 4px solid var(--ink); border-radius: 20px; box-shadow: 0 8px 0 var(--ink); padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; animation: deal .5s var(--pop) both; transition: transform .2s var(--pop), opacity .25s; }
-.card:nth-child(2) { animation-delay: .08s; } .card:nth-child(3) { animation-delay: .16s; }
-@keyframes deal { from { transform: translateY(-120px) rotate(-18deg) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
-.card::before { content: ''; position: absolute; inset: 7px; border: 2px dashed rgba(42,27,61,0.25); border-radius: 13px; pointer-events: none; }
-.card .art { width: 118px; height: 118px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff 0, #F6E6C8 70%); border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; margin-top: 6px; }
-.card .art img { width: 96px; height: 96px; }
-.card .corner { position: absolute; width: 26px; height: 26px; }
-.card .corner.tl { left: 10px; top: 10px; } .card .corner.br { right: 10px; bottom: 10px; transform: rotate(180deg); }
-.card b { font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: 21px; line-height: 1.1; }
-.card span { font-size: 13px; font-weight: 700; color: #4A3A66; }
-.card.mine { cursor: pointer; }
-.card.mine:hover { transform: translateY(-8px) rotate(-2deg); }
-.card.mine:active { transform: translateY(2px) scale(.98); }
-.card.chosen { transform: scale(1.1) rotate(-2deg); background: #FFF0B3; z-index: 2; }
-.card.faded { opacity: .3; transform: scale(.9); }
-#pickTimer { font-family: 'Lilita One', sans-serif; font-size: 20px; color: #fff; -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; }
-@media (max-width: 680px) {
-  .card { width: min(100%, 360px); height: auto; flex-direction: row; text-align: left; padding: 10px 12px; gap: 12px; }
-  .card .art { width: 70px; height: 70px; margin: 0; flex: none; }
-  .card .art img { width: 56px; height: 56px; }
+/* ---------- Zwischen den Runden: Kartenwahl als Panel über der Insel ---------- */
+.pickpanel { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 7; width: min(640px, calc(100vw - 20px));
+  background: var(--paper); border: 4px solid var(--ink); border-radius: 24px; box-shadow: 0 6px 0 var(--ink), 0 16px 40px rgba(0,0,0,0.3);
+  padding: 10px 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: dropIn .4s var(--pop) both; }
+@keyframes dropIn { from { transform: translate(-50%, -140%); } to { transform: translate(-50%, 0); } }
+.pickpanel.finale { background: linear-gradient(180deg, #FFE27A, var(--sun)); }
+#pickTitle { font-size: clamp(20px, 5vw, 28px); line-height: 1.1; }
+.picksub { font-weight: 800; font-size: 14px; margin: -4px 0 0; color: #4A3A66; text-align: center; }
+.picksub img.ic { width: 24px; height: 24px; vertical-align: middle; }
+#pickCards { display: flex; gap: 10px; justify-content: center; width: 100%; }
+#pickCards:empty { display: none; }
+.card { position: relative; flex: 1; max-width: 190px; background: #fff; border: 3px solid var(--ink); border-radius: 16px; box-shadow: 0 5px 0 var(--ink); padding: 8px 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; animation: deal .45s var(--pop) both; transition: transform .2s var(--pop), opacity .25s; }
+.card:nth-child(2) { animation-delay: .07s; } .card:nth-child(3) { animation-delay: .14s; }
+@keyframes deal { from { transform: translateY(-60px) rotate(-14deg) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.card .art { width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff 0, #F6E6C8 70%); border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; }
+.card .art img { width: 50px; height: 50px; }
+.card .corner { position: absolute; width: 20px; height: 20px; }
+.card .corner.tl { left: 6px; top: 6px; } .card .corner.br { right: 6px; bottom: 6px; transform: rotate(180deg); }
+.card b { font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: 17px; line-height: 1.1; }
+.card span { font-size: 12px; font-weight: 700; color: #4A3A66; line-height: 1.25; }
+.card .txt { display: flex; flex-direction: column; gap: 2px; }
+.card.mine { cursor: pointer; background: #FFFBEF; }
+.card.mine:hover { transform: translateY(-5px) rotate(-1.5deg); }
+.card.mine:active { transform: translateY(2px) scale(.97); }
+#pickBar { width: 100%; height: 10px; border: 2px solid var(--ink); border-radius: 6px; background: #E8DCC4; overflow: hidden; }
+#pickBar i { display: block; height: 100%; background: var(--coral); transition: width .2s linear; }
+#standings { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#standings li { display: flex; align-items: center; gap: 2px; font-family: 'Lilita One', sans-serif; font-size: 18px; background: #fff; border: 2px solid var(--ink); border-radius: 999px; padding: 0 10px 0 2px; }
+#standings li .av { width: 34px; height: 34px; }
+#standings li.won { background: var(--sun); animation: bump .6s var(--pop) .3s both; }
+#standings li.mb { box-shadow: 0 0 0 3px var(--coral); }
+@keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@media (max-width: 520px) {
+  .pickpanel { padding: 8px 8px 10px; gap: 6px; }
+  #pickCards { gap: 6px; }
+  .card { padding: 6px 4px 8px; }
+  .card .art { width: 50px; height: 50px; } .card .art img { width: 38px; height: 38px; }
   .card .corner { display: none; }
-  .card .txt { display: flex; flex-direction: column; gap: 2px; }
+  .card b { font-size: 14px; } .card span { font-size: 10.5px; }
+  #standings li { font-size: 15px; } #standings li .av { width: 28px; height: 28px; }
 }
-.card .txt { display: flex; flex-direction: column; gap: 4px; }
+
+/* Wiederholung des Rauswurfs */
+#replayTag { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: 'Lilita One', sans-serif; font-size: 18px; letter-spacing: 2px; padding: 4px 14px; border-radius: 999px; display: none; align-items: center; gap: 8px; }
+#replayTag .rec { width: 12px; height: 12px; border-radius: 50%; background: var(--coral); animation: blink .8s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+body.replaying #replayTag { display: flex; }
+body.replaying #banner { top: 16%; font-size: clamp(26px, 6vw, 48px); }
+body.replaying #cardBadge, body.replaying #scores, body.replaying #toasts { display: none; }
+body.replaying #cv { filter: saturate(.75) contrast(1.05); }
+
+/* Lobby: Farbwahl, Einstellungen, Bereit */
+.colorrow { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.colorrow button { width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 3px solid var(--ink); background: #fff; box-shadow: 0 3px 0 var(--ink); cursor: pointer; }
+.colorrow button img { width: 40px; height: 40px; }
+.colorrow button.taken { opacity: .3; cursor: default; }
+.colorrow button.mine { background: var(--sun); transform: translateY(-3px); }
+.lobbyset { margin: 0; text-align: center; font-weight: 800; font-size: 14px; color: #4A3A66; }
+#btnReady.on { background: var(--mint); }
+.plist .tagready { font-size: 12px; background: var(--mint); border: 2px solid var(--ink); border-radius: 8px; padding: 1px 6px; }
+.plist .tagwait { font-size: 12px; background: #E8DCC4; border: 2px solid var(--ink); border-radius: 8px; padding: 1px 6px; }
+.plist .tags { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.plist .kick { width: 30px; height: 30px; padding: 0; font-size: 16px; border-radius: 10px; box-shadow: 0 3px 0 var(--ink); }
 
 /* ---------- Siegerehrung ---------- */
 #podium { display: flex; justify-content: center; align-items: flex-end; gap: 6px; margin-top: 4px; }
@@ -229,7 +261,9 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(255, 201, 60, 0.6); }
   #toasts { top: auto; bottom: max(84px, calc(env(safe-area-inset-bottom) + 76px)); left: 12px; transform: none; align-items: flex-start; max-width: calc(100vw - 150px); }
   .toast { white-space: normal; border-radius: 16px; }
   #topBtns .btn.icon { width: 42px; height: 42px; }
-  body.picking #scores, body.picking #emotes, body.picking #toasts { display: none; }
+  body.picking #emotes, body.replaying #emotes { display: none; }
+  #ko { white-space: normal; width: 94vw; }
+  #replayTag { left: 12px; transform: none; font-size: 14px; letter-spacing: 1px; padding: 4px 10px; top: max(18px, env(safe-area-inset-top)); }
 }
 
 /* Debug-Ansicht (?debug) */
@@ -244,3 +278,5 @@ input:focus, select:focus { box-shadow: 0 0 0 4px rgba(255, 201, 60, 0.6); }
 #dbgSliders.off { opacity: .4; pointer-events: none; }
 #debug .dbg-row { display: flex; gap: 6px; margin: 6px 0; }
 #debug .dbg-check { display: flex; gap: 6px; align-items: center; }
+
+body.picking #scores, body.picking #cardBadge { display: none; }
