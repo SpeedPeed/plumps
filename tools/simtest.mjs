@@ -13,6 +13,7 @@
 import { Game, MODES, MODE_IDS, MAPS, MAP_IDS, CARDS, CARD_IDS, ITEMS, ITEM_IDS, BOT_LEVELS } from '../js/sim.js';
 import { T } from '../js/tuning.js';
 import { Rng, deriveSeed } from '../js/rng.js';
+import { matchXP, levelOf, xpForLevel } from '../js/cosmetics.js';
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
@@ -435,6 +436,28 @@ checks.push(
     const g = new Game({ seed: 3 });
     const a = g.addPlayer('a', 'A'), b = g.addPlayer('b', 'B');
     return !g.setColor('a', b.ci) && g.setColor('a', 5) && a.ci === 5;
+  }],
+  ['Ungültige Kosmetik wird auf Standard gesetzt, gültige übernommen', () => {
+    const g = new Game({ seed: 3 });
+    const a = g.addPlayer('a', 'A', false, 99, { tr: 42, dc: -3 });
+    const ok1 = a.hat === 0 && a.tr === 0 && a.dc === 0;
+    g.setCosmetics('a', { tr: 2, dc: 1 });
+    const snap = g.snapshot([]).p.find(p => p.id === 'a');
+    return ok1 && snap.tr === 2 && snap.dn === 1;
+  }],
+  ['Matchende liefert Werte pro Spieler und Auszeichnungen mit Spieler-ID', () => {
+    const g = new Game({ seed: 4 });
+    const a = g.addPlayer('a', 'A'); g.addPlayer('b', 'B');
+    g.startMatch(); g.target = 1; g.finale = true; g.phase = 'play';
+    a.stats.saves = 3; a.stats.counters = 2;
+    g.endRound(a); g.afterRoundEnd();
+    const s = g.snapshot([]);
+    return s.ph === 'matchEnd' && s.ps.a.wins === 1 && s.aw.some(w => w[1] === 'Kantenkünstler' && w[4] === 'a') && s.aw.some(w => w[1] === 'Konter-König');
+  }],
+  ['XP und Stufen: mehr Leistung gibt mehr XP, Stufe 2 ab 80 XP', () => {
+    const base = matchXP({ rounds: 5, stats: {}, place: 3, awards: 0 }).total;
+    const good = matchXP({ rounds: 5, stats: { wins: 3, ko: 5 }, place: 0, awards: 2 }).total;
+    return good > base && levelOf(79) === 1 && levelOf(80) === 2 && levelOf(xpForLevel(10)) === 10;
   }],
 );
 let failedChecks = 0;

@@ -10,6 +10,7 @@ import { MODES, MODE_IDS, MODE_POOL } from './modes/index.js';
 import { CARDS, CARD_IDS, NO_CARD } from './cards/index.js';
 import { ITEMS, ITEM_IDS, EFFECTS } from './items/index.js';
 import { botThink } from './bots.js';
+import { TRAILS, DANCES, FREE_HATS } from './cosmetics.js';
 
 export { MAPS, MAP_IDS, MODES, MODE_IDS, CARDS, CARD_IDS, ITEMS, ITEM_IDS };
 export { BOT_LEVELS } from './tuning.js';
@@ -17,15 +18,17 @@ export { BOT_LEVELS } from './tuning.js';
 // Farbenblind-freundlich (Okabe-Ito), jede Farbe hat zusätzlich ein Muster (docs/STYLE.md)
 export const COLORS = ['#E8603C', '#4DB3EA', '#F4D54A', '#17A37A', '#CC79A7', '#3A5FBF'];
 export const MAX_PLAYERS = 6;
-export const HAT_COUNT = 14;    // Hüte 0..13 (0 = ohne), gezeichnet in js/art/icons.js
-export const EMOTE_COUNT = 5;
+export const HAT_COUNT = 20;    // Hüte 0..19 (0 = ohne), gezeichnet in js/art/icons.js
+export const EMOTE_COUNT = 8;
 
 const TAU = Math.PI * 2;
 // Auf diesen Inseln wird das Finale gespielt (nichts bewegt sich, alles gut lesbar)
 const FINALE_MAPS = ['rund', 'quadrat', 'knolle', 'stern'];
 const r1 = (v) => Math.round(v * 10) / 10;
 const validHat = (h) => ((h | 0) >= 0 && (h | 0) < HAT_COUNT ? h | 0 : 0);
-const newStats = () => ({ ko: 0, falls: 0, pups: 0, items: 0, dashes: 0, saves: 0, counters: 0, breaks: 0 });
+const newStats = () => ({ ko: 0, falls: 0, pups: 0, items: 0, dashes: 0, saves: 0, counters: 0, breaks: 0, wins: 0, solo: 0 });
+// Kosmetik prüfen: Freischaltungen leben im Browser des Spielers, der Host achtet nur auf gültige Werte
+const validIdx = (v, n) => ((v | 0) >= 0 && (v | 0) < n ? v | 0 : 0);
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 
@@ -159,7 +162,7 @@ export class Game {
     return i < 0 ? 0 : i;
   }
 
-  addPlayer(id, name, bot = false, hat = 0) {
+  addPlayer(id, name, bot = false, hat = 0, cos = {}) {
     if (this.players.size >= MAX_PLAYERS) return null;
     const ci = this.freeColor();
     const p = {
@@ -172,11 +175,16 @@ export class Game {
       score: 0, lastHitBy: null, lastHitT: -99,
       lives: 0, m: 0, pw: {}, emo: null, emoT: 0,
       stats: newStats(), ready: bot,
+      tr: validIdx(cos.tr, TRAILS.length), dc: validIdx(cos.dc, DANCES.length),
       input: { mx: 0, my: 0, d: 0, u: 0, b: 0, h: 0 },
       botBrain: { cd: 0, wobble: this.rng.range(0, 6), goal: null, goalT: 0, releaseAt: null, seenDash: {} },
     };
     this.resetCombat(p);
-    if (bot) p.hat = 1 + this.rng.int(HAT_COUNT - 1);
+    if (bot) {
+      p.hat = 1 + this.rng.int(FREE_HATS - 1);
+      if (this.rng.next() < 0.4) p.tr = 1 + this.rng.int(TRAILS.length - 1);
+      p.dc = this.rng.int(DANCES.length);
+    }
     this.players.set(id, p);
     // Wer mitten im Match dazukommt, startet fair mit dem Punktestand des Letzten
     // und ist bis zur nächsten Runde Geist.
@@ -246,6 +254,13 @@ export class Game {
   setHat(id, hat) {
     const p = this.players.get(id);
     if (p) p.hat = validHat(hat);
+  }
+
+  setCosmetics(id, cos) {
+    const p = this.players.get(id);
+    if (!p || !cos) return;
+    p.tr = validIdx(cos.tr, TRAILS.length);
+    p.dc = validIdx(cos.dc, DANCES.length);
   }
 
   emote(id, i) {
@@ -385,7 +400,7 @@ export class Game {
   endRound(winner, mates = null, label = null) {
     this.roundWinners = winner ? (mates || [winner]).map(p => p.id) : [];
     if (winner) {
-      for (const p of mates || [winner]) this.addPoint(p, this.finale && p.score >= this.target - 1);
+      for (const p of mates || [winner]) { this.addPoint(p, this.finale && p.score >= this.target - 1); p.stats.wins++; }
       this.message = label || `${winner.name} gewinnt die Runde!`;
       this.emit({ k: 'win', id: winner.id, ids: this.roundWinners });
     } else {
@@ -497,6 +512,7 @@ export class Game {
     const hitter = this.players.get(p.lastHitBy);
     const credited = hitter && hitter !== p && this.t - p.lastHitT < T.KO_WINDOW;
     this.fallRecs.push({ tk: this.tick, x: p.x, y: p.y, v: p.id, a: credited ? hitter.id : null });
+    if (!credited) p.stats.solo++;
     if (this.fallRecs.length > 30) this.fallRecs.shift();
     if (credited) {
       hitter.stats.ko++;
@@ -935,15 +951,20 @@ export class Game {
   awards() {
     const list = [...this.players.values()];
     const out = [];
-    const top = (key, emoji, title, unit) => {
+    // [Symbol, Titel, Name, Wert, Spieler-ID] – ab `min` gibt es die Auszeichnung
+    const top = (key, icon, title, unit, min = 1) => {
       const best = list.reduce((a, p) => (!a || p.stats[key] > a.stats[key] ? p : a), null);
-      if (best && best.stats[key] > 0) out.push([emoji, title, best.name, `${best.stats[key]} ${unit}`]);
+      if (best && best.stats[key] >= min) out.push([icon, title, best.name, `${best.stats[key]} ${unit}`, best.id]);
     };
     top('ko', 'glove', 'Rausschubser', 'Rauswürfe');
+    top('counters', 'konter', 'Konter-König', 'Konter');
+    top('saves', 'rettungsring', 'Kantenkünstler', 'Rettungen', 2);
+    top('breaks', 'blitz', 'Brecheisen', 'Durchbrüche');
+    top('solo', 'wolke', 'Pechvogel', 'mal ganz allein geplumpst', 2);
     top('falls', 'welle', 'Wasserratte', 'mal geplumpst');
     top('pups', 'pups', 'Pups-Meister', 'Pups-Treffer');
     top('items', 'geschenk', 'Sammler', 'Power-ups');
-    top('dashes', 'blitz', 'Dash-Junkie', 'Dashes');
+    top('dashes', 'speed', 'Dash-Junkie', 'Dashes');
     return out;
   }
 
@@ -969,6 +990,7 @@ export class Game {
       kx: this.crates.map(c => [r1(c.x), r1(c.y), c.r, r1(c.a)]),
       mx: this.phase === 'play' || this.phase === 'roundEnd' ? this.mapDef.snapshot?.(this) || null : null,
       aw: this.phase === 'matchEnd' ? this.awards() : null,
+      ps: this.phase === 'matchEnd' ? Object.fromEntries([...this.players.values()].map(p => [p.id, p.stats])) : null,
       p: [...this.players.values()].map(p => ({
         id: p.id, n: p.name, c: p.color, ci: p.ci, b: p.bot ? 1 : 0, h: p.hat,
         x: r1(p.state === 'ghost' ? p.gx : p.x), y: r1(p.state === 'ghost' ? p.gy : p.y),
@@ -984,7 +1006,7 @@ export class Game {
         bc: r1(p.braceCd / T.BRACE_CD),
         wb: p.edgeAge > 0 ? 1 : 0, dz: p.dazeT > 0 ? 1 : 0,
         dk: p.dashT > 0 ? r1(p.dashCharge) : 0,
-        rd: p.ready ? 1 : 0,
+        rd: p.ready ? 1 : 0, tr: p.tr, dn: p.dc,
       })),
       duel: this.duel || null, fin: this.endDelay > 0 ? 1 : 0,
       ev: events || [],
