@@ -9,6 +9,9 @@ export default {
 
   onFall(g, p) { g.elimOrder.push(p.id); },
 
+  // Wer ist noch im Rennen? (für das letzte Duell)
+  contenders: (g, all) => all.filter(p => p.state === 'alive'),
+
   checkEnd(g, all, dt) {
     const inGame = all.filter(p => p.state === 'alive');
     if (inGame.length > 1) return null;

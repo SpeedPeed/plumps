@@ -3,7 +3,8 @@
 //   step(g, dt, alive)                  – jeden Tick während der Runde
 //   onFall(g, p), onCollide(g, a, b, attacker), onRemove(g, id), onEnd(g)
 //   canRespawn(g, p)                    – true = kommt nach dem Sturz zurück, sonst Geist
-//   checkEnd(g, all, dt)                – { winner } beendet die Runde
+//   checkEnd(g, all, dt)                – { winner } beendet die Runde (dt ist hier echte Zeit)
+//   contenders(g, all)                  – wer noch im Rennen ist; bei zweien beginnt das Duell
 //   time()                              – Zeitlimit; danach gewinnt die höchste score(g, p)
 //   shrinkStart()                       – ab wann die Insel schrumpft
 //   playerMods(g, p, pm), carryables(g), snapshot(g, s, withGrid)

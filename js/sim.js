@@ -21,7 +21,9 @@ export const EMOTES = ['😂', '😱', '😡', '💩', '👋'];
 
 const TAU = Math.PI * 2;
 const r1 = (v) => Math.round(v * 10) / 10;
-const newStats = () => ({ ko: 0, falls: 0, pups: 0, items: 0, dashes: 0 });
+const newStats = () => ({ ko: 0, falls: 0, pups: 0, items: 0, dashes: 0, saves: 0, counters: 0, breaks: 0 });
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const lerp = (a, b, k) => a + (b - a) * k;
 
 export class Game {
   constructor({ seed } = {}) {
@@ -88,11 +90,18 @@ export class Game {
   playerMods(p) {
     const gm = this.gm;
     const pm = {
-      acc: T.ACC * gm.accMul, fric: gm.fric, dashCd: gm.dashCd, dashBonus: T.DASH_BONUS, punch: false,
+      acc: T.ACC * gm.accMul, fric: gm.fric, dashCd: gm.dashCd, dashMul: 1, punch: false,
       size: gm.sizeMul, mass: 1, takeDash: 1, takePups: 1, takeBlast: 1,
     };
+    if (p.charging) pm.acc *= T.CHARGE_ACC;
+    if (p.braceT > 0) {
+      pm.acc *= T.BRACE_ACC; pm.fric *= T.BRACE_FRIC; pm.mass *= T.BRACE_MASS;
+      pm.takeDash *= T.BRACE_TAKE; pm.takePups *= T.BRACE_TAKE_OTHER; pm.takeBlast *= T.BRACE_TAKE_OTHER;
+    }
+    if (p.edgeAge > 0) pm.fric *= T.EDGE_FRIC;
     this.M.playerMods?.(this, p, pm);
     for (const k in p.pw) if (p.pw[k] > 0) EFFECTS[k]?.mods?.(this, p, pm);
+    if (p.dazeT > 0) pm.acc = 0;
     return pm;
   }
 
@@ -117,9 +126,10 @@ export class Game {
       score: 0, lastHitBy: null, lastHitT: -99,
       lives: 0, m: 0, pw: {}, emo: null, emoT: 0,
       stats: newStats(),
-      input: { mx: 0, my: 0, d: 0 },
-      botBrain: { cd: 0, wobble: this.rng.range(0, 6), goal: null, goalT: 0 },
+      input: { mx: 0, my: 0, d: 0, u: 0, b: 0, h: 0 },
+      botBrain: { cd: 0, wobble: this.rng.range(0, 6), goal: null, goalT: 0, releaseAt: null, seenDash: {} },
     };
+    this.resetCombat(p);
     if (bot) p.hat = 1 + this.rng.int(HATS.length - 1);
     this.players.set(id, p);
     // Wer mitten in einer Runde dazukommt, ist bis zur nächsten Runde Geist.
@@ -143,7 +153,18 @@ export class Game {
     let mx = +inp.mx || 0, my = +inp.my || 0;
     const m = Math.hypot(mx, my);
     if (m > 1) { mx /= m; my /= m; }
-    p.input = { mx, my, d: Math.max(p.input.d, +inp.d || 0) };
+    // d = Dash gedrückt, u = Dash losgelassen, b = Stemmen gedrückt (jeweils Zähler), h = Dash wird gehalten
+    const old = p.input;
+    p.input = { mx, my, d: Math.max(old.d, +inp.d || 0), u: Math.max(old.u, +inp.u || 0), b: Math.max(old.b, +inp.b || 0), h: inp.h ? 1 : 0 };
+  }
+
+  // Kampf-Zustand zurücksetzen (beim Erscheinen und Wiederkehren)
+  resetCombat(p) {
+    p.dashSeen = p.input.d; p.relSeen = p.input.u; p.braceSeen = p.input.b;
+    p.pressAt = null; p.relAt = null;
+    p.charging = false; p.chargeT = 0; p.chargeStart = 0; p.dashCharge = 0;
+    p.braceT = 0; p.braceAge = 9; p.braceCd = 0;
+    p.dazeT = 0; p.edgeAge = 0; p.wobbleAt = -9;
   }
 
   setHat(id, hat) {
@@ -205,6 +226,8 @@ export class Game {
     for (const p of this.players.values()) {
       p.m = 0; p.pw = {}; p.lives = 0; p.fallsAtStart = p.stats.falls;
     }
+    this.startCount = this.players.size;
+    this.duel = null; this.duelT = 0; this.hitstop = 0;
     this.C.setup?.(this);
     this.mapDef.setup?.(this);
     this.M.setup?.(this);
@@ -249,7 +272,7 @@ export class Game {
     p.state = 'alive'; p.fallT = 0;
     p.dashCd = 0; p.dashT = 0; p.pupsCd = 0;
     p.lastHitBy = null; p.lastHitT = -99;
-    p.dashSeen = p.input.d;
+    this.resetCombat(p);
     p.r = this.sizeFor(p);
   }
 
@@ -368,9 +391,16 @@ export class Game {
     }
     if (this.phase !== 'play') return;
 
+    // Treffer-Stopp: Bei starken Treffern steht das Spiel für einen Wimpernschlag still
+    if (this.hitstop > 0) { this.hitstop -= dtReal; return; }
+
     this.gm = this.globalMods();
     const gm = this.gm;
-    const dt = dtReal * gm.dtScale;
+    // Zeitlupe nach dem entscheidenden Rauswurf und kurz zu Beginn des letzten Duells
+    let slow = 1;
+    if (this.endDelay > 0) slow = T.FINAL_SLOWMO;
+    else if (this.duelT > 0) { slow = lerp(T.DUEL_SLOWMO, 1, 1 - this.duelT / T.DUEL_SLOWMO_TIME); this.duelT -= dtReal; }
+    const dt = dtReal * gm.dtScale * slow;
     this.t += dt;
     const all = [...this.players.values()];
     const alive = all.filter(p => p.state === 'alive');
@@ -399,9 +429,7 @@ export class Game {
     this.bombStep(dt);
     this.M.step?.(this, dt, alive);
 
-    for (const p of alive) {
-      if (p.state === 'alive' && !onGround(this.shapes, this.holes, p.x, p.y)) this.fall(p, 'fall');
-    }
+    for (const p of alive) if (p.state === 'alive') this.edgeCheck(p, dt);
 
     for (const p of all) {
       if (p.state !== 'falling') continue;
@@ -418,11 +446,42 @@ export class Game {
       }
     }
 
-    this.checkEnd(all, dt);
+    // Letztes Duell: Kamera zoomt heran, kurz Zeitlupe
+    const contenders = this.M.contenders?.(this, all);
+    if (contenders && contenders.length === 2 && this.startCount >= 3 && !this.duel) {
+      this.duel = contenders.map(p => p.id);
+      this.duelT = T.DUEL_SLOWMO_TIME;
+      this.emit({ k: 'duel', ids: this.duel });
+    }
+
+    this.checkEnd(all, dtReal);
+  }
+
+  // Kantenwackeln: Wer mit dem Mittelpunkt knapp über die Kante rutscht, hat noch
+  // EDGE_TIME Sekunden, um sich zurückzuretten. Wer weit drüber ist, fällt sofort.
+  edgeCheck(p, dt) {
+    if (onGround(this.shapes, this.holes, p.x, p.y)) {
+      if (p.edgeAge > 0.08) { p.stats.saves++; this.emit({ k: 'save', id: p.id, x: p.x, y: p.y }); }
+      p.edgeAge = 0;
+      return;
+    }
+    const grace = T.EDGE_GRACE * p.r;
+    if (grace <= 0 || T.EDGE_TIME <= 0 || !onGround(this.shapes, this.holes, p.x, p.y, -grace)) { this.fall(p, 'fall'); return; }
+    if (p.edgeAge === 0 && this.t - p.wobbleAt > 0.6) { p.wobbleAt = this.t; this.emit({ k: 'wobble', id: p.id, x: p.x, y: p.y }); }
+    p.edgeAge += dt;
+    if (p.edgeAge >= T.EDGE_TIME) this.fall(p, 'fall');
   }
 
   movePlayer(p, dt, alive) {
     for (const k in p.pw) p.pw[k] = Math.max(0, p.pw[k] - dt);
+    p.dashCd = Math.max(0, p.dashCd - dt);
+    p.dashT = Math.max(0, p.dashT - dt);
+    p.braceT = Math.max(0, p.braceT - dt);
+    p.braceAge += dt;
+    p.braceCd = Math.max(0, p.braceCd - dt);
+    p.dazeT = Math.max(0, p.dazeT - dt);
+    this.readActions(p);
+
     const pm = this.playerMods(p);
     p.r += (T.BLOB_R * pm.size - p.r) * Math.min(1, dt * T.SIZE_LERP);
 
@@ -433,20 +492,94 @@ export class Game {
     p.vx += ax * dt; p.vy += ay * dt;
     const k = Math.exp(-pm.fric * dt);
     p.vx *= k; p.vy *= k;
-    if (Math.hypot(mx, my) > 0.2) { const m = Math.hypot(mx, my); p.fx = mx / m; p.fy = my / m; }
+    if (Math.hypot(mx, my) > 0.2 && p.dazeT <= 0) { const m = Math.hypot(mx, my); p.fx = mx / m; p.fy = my / m; }
 
-    p.dashCd = Math.max(0, p.dashCd - dt);
-    p.dashT = Math.max(0, p.dashT - dt);
-    if (p.input.d > p.dashSeen) {
-      p.dashSeen = p.input.d;
-      if (p.dashCd <= 0) {
-        p.vx += p.fx * T.DASH_V; p.vy += p.fy * T.DASH_V;
-        p.dashT = T.DASH_T; p.dashCd = pm.dashCd;
-        p.stats.dashes++;
-        this.emit({ k: 'dash', id: p.id, x: p.x, y: p.y });
-      }
+    if (p.charging) {
+      p.chargeT += dt;
+      const released = p.relAt != null && p.relAt >= p.chargeStart;
+      if (released || p.chargeT >= T.DASH_HOLD_MAX) this.fireDash(p, pm);
     }
     p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+
+  // Tasten auswerten: Stemmen sofort, Dash beginnt mit dem Aufladen (Antippen = sofort los)
+  readActions(p) {
+    const inp = p.input;
+    if (inp.d > p.dashSeen) { p.dashSeen = inp.d; p.pressAt = this.t; }
+    if (inp.u > p.relSeen) { p.relSeen = inp.u; p.relAt = this.t; }
+    const canAct = p.dazeT <= 0;
+    if (inp.b > p.braceSeen) {
+      p.braceSeen = inp.b;
+      if (canAct && p.braceCd <= 0) {
+        p.braceT = T.BRACE_TIME; p.braceAge = 0; p.braceCd = T.BRACE_CD;
+        p.charging = false; p.pressAt = null;
+        this.emit({ k: 'brace', id: p.id });
+      }
+    }
+    if (p.charging || p.pressAt == null) return;
+    const released = p.relAt != null && p.relAt >= p.pressAt;
+    // Ein Druck kurz vor Ende der Abklingzeit wird gemerkt, danach verfällt er
+    if (released && this.t - p.relAt > T.DASH_BUFFER) { p.pressAt = null; return; }
+    if (!canAct || p.dashCd > 0 || p.braceT > 0) return;
+    p.charging = true; p.chargeT = 0; p.chargeStart = p.pressAt; p.pressAt = null;
+    if (!released) this.emit({ k: 'charge', id: p.id });
+  }
+
+  chargeOf(p) { return clamp01((p.chargeT - T.TAP_TIME) / (T.DASH_CHARGE - T.TAP_TIME)); }
+
+  fireDash(p, pm) {
+    const c = this.chargeOf(p);
+    p.charging = false;
+    const v = lerp(T.DASH_V, T.DASH_V_MAX, c);
+    p.vx += p.fx * v; p.vy += p.fy * v;
+    p.dashT = lerp(T.DASH_T, T.DASH_T_MAX, c);
+    p.dashCharge = c;
+    p.dashCd = pm.dashCd * lerp(1, T.DASH_CD_CHARGED, c);
+    p.stats.dashes++;
+    this.emit({ k: 'dash', id: p.id, x: p.x, y: p.y, c: r1(c) });
+  }
+
+  // Ein dashender Blob X trifft Y. Ergebnis je nach Stemmen: Konter, Durchbruch oder normaler Treffer.
+  dashHit(X, Y, px, nx, ny, approach) {
+    const c = X.dashCharge;
+    const impact = Math.max(T.IMPACT_MIN, Math.min(T.IMPACT_MAX, T.IMPACT_BASE + approach / T.IMPACT_SCALE));
+    const base = lerp(T.DASH_BONUS, T.DASH_BONUS_MAX, c) * impact * px.dashMul;
+    const mx = (X.x + Y.x) / 2, my = (X.y + Y.y) / 2;
+    if (Y.braceT > 0) {
+      if (c >= T.BREAK_CHARGE) {
+        // Durchbruch: voll geladener Dash bricht durchs Stemmen
+        Y.braceT = 0; Y.dazeT = T.BREAK_DAZE; Y.charging = false;
+        const f = base * T.BREAK_MUL * this.playerMods(Y).takeDash;
+        Y.vx += nx * f; Y.vy += ny * f;
+        X.stats.breaks++;
+        this.emit({ k: 'break', id: X.id, victim: Y.id, x: mx, y: my });
+        this.hitstop = Math.max(this.hitstop, T.HITSTOP_MAX);
+        return 'break';
+      }
+      if (Y.braceAge <= T.BRACE_PERFECT) {
+        // Konter: perfekt getimtes Stemmen wirft den Angreifer zurück
+        const f = T.COUNTER_F * (0.8 + 0.4 * c);
+        X.vx = -nx * f; X.vy = -ny * f;
+        X.dashT = 0; X.dazeT = T.COUNTER_DAZE; X.charging = false;
+        Y.vx *= 0.2; Y.vy *= 0.2;
+        Y.braceCd = Math.min(Y.braceCd, T.BRACE_CD_COUNTER);
+        this.credit(X, Y.id);
+        Y.stats.counters++;
+        this.emit({ k: 'counter', id: Y.id, by: X.id, x: mx, y: my });
+        this.hitstop = Math.max(this.hitstop, T.HITSTOP_MAX);
+        return 'counter';
+      }
+    }
+    const f = base * this.playerMods(Y).takeDash;
+    Y.vx += nx * f; Y.vy += ny * f;
+    if (px.punch) this.emit({ k: 'punch', x: Y.x, y: Y.y });
+    const strength = Math.max(c, px.punch ? 1 : 0);
+    if (strength >= T.HITSTOP_FROM) {
+      const k = (strength - T.HITSTOP_FROM) / (1 - T.HITSTOP_FROM || 1);
+      this.hitstop = Math.max(this.hitstop, lerp(T.HITSTOP_MIN, T.HITSTOP_MAX, k));
+      this.emit({ k: 'hit', x: mx, y: my, p: r1(strength) });
+    }
+    return 'hit';
   }
 
   checkEnd(all, dt) {
@@ -507,10 +640,11 @@ export class Game {
           a.vx -= jImp / ma * nx; a.vy -= jImp / ma * ny;
           b.vx += jImp / mb * nx; b.vy += jImp / mb * ny;
         }
-        // Dash-Treffer schubsen extra hart
-        if (aDash) { const f = pa.dashBonus * pb.takeDash; b.vx += nx * f; b.vy += ny * f; if (pa.punch) this.emit({ k: 'punch', x: b.x, y: b.y }); }
-        if (bDash) { const f = pb.dashBonus * pa.takeDash; a.vx -= nx * f; a.vy -= ny * f; if (pb.punch) this.emit({ k: 'punch', x: a.x, y: a.y }); }
-        if (attacker) this.credit(attacker === a ? b : a, attacker.id);
+        // Dash-Treffer schubsen extra hart (oder werden gekontert)
+        let countered = false;
+        if (aDash) countered = this.dashHit(a, b, pa, nx, ny, va) === 'counter' || countered;
+        if (bDash) countered = this.dashHit(b, a, pb, -nx, -ny, vb) === 'counter' || countered;
+        if (attacker && !countered) this.credit(attacker === a ? b : a, attacker.id);
         if (-rv > T.BOING_SPEED || aDash || bDash) this.emit({ k: 'boing', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, p: Math.min(1, -rv / 600) });
         this.C.onCollide?.(this, a, b, attacker);
         this.M.onCollide?.(this, a, b, attacker);
@@ -680,7 +814,13 @@ export class Game {
         pw: Object.keys(p.pw).filter(k => p.pw[k] > 0 && ITEMS[k]).join(','),
         iv: p.pw.invis > 0 ? 1 : 0, sl: p.pw.slip > 0 ? 1 : 0,
         em: p.emoT > 0 ? p.emo : -1,
+        ch: p.charging ? Math.round(this.chargeOf(p) * 100) / 100 : -1,
+        br: p.braceT > 0 ? (p.braceAge <= T.BRACE_PERFECT ? 2 : 1) : 0,
+        bc: r1(p.braceCd / T.BRACE_CD),
+        wb: p.edgeAge > 0 ? 1 : 0, dz: p.dazeT > 0 ? 1 : 0,
+        dk: p.dashT > 0 ? r1(p.dashCharge) : 0,
       })),
+      duel: this.duel || null, fin: this.endDelay > 0 ? 1 : 0,
       ev: events || [],
     };
     // Zwischen den Runden ist der nächste Modus schon gewählt, aber noch nicht aufgebaut

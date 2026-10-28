@@ -4,6 +4,6 @@ export default {
   id: 'glove', name: 'Boxhandschuh', emoji: '🥊', desc: 'Deine Dashes hauen 8 s lang extrem rein!',
   apply(g, p) { p.pw.glove = T.GLOVE_TIME; },
   effects: {
-    glove: { mods(g, p, pm) { pm.dashBonus = T.GLOVE_BONUS; pm.punch = true; } },
+    glove: { mods(g, p, pm) { pm.dashMul *= T.GLOVE_MUL; pm.punch = true; } },
   },
 };

@@ -16,9 +16,11 @@ export default {
 
   canRespawn: (g, p) => p.lives > 0,
 
+  // Wer noch Leben hat, ist im Spiel – auch während er gerade ins Wasser fällt
+  contenders: (g, all) => all.filter(p => p.lives > 0 && (p.state === 'alive' || p.state === 'falling')),
+
   checkEnd(g, all, dt) {
-    // Wer noch Leben hat, ist im Spiel – auch während er gerade ins Wasser fällt
-    const inGame = all.filter(p => p.lives > 0 && (p.state === 'alive' || p.state === 'falling'));
+    const inGame = this.contenders(g, all);
     if (inGame.length > 1) return null;
     g.endDelay += dt;
     if (g.endDelay <= T.END_DELAY) return null;
