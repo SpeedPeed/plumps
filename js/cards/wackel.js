@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'wackel', name: 'Wackelpudding', emoji: '🍮', desc: 'Alle schwabbeln unkontrolliert durch die Gegend.',
+  id: 'wackel', name: 'Wackelpudding', desc: 'Alle schwabbeln unkontrolliert durch die Gegend.',
   fits: (mode, map) => !map.moving,
   input: (g, p, inp) => ({
     mx: inp.mx + Math.sin(g.t * 3 + p.ci * 2) * T.WACKEL,

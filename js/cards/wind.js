@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'wind', name: 'Sturmflut', emoji: '🌪️', desc: 'Ein drehender Sturm schiebt alle herum.',
+  id: 'wind', name: 'Sturmflut', desc: 'Ein drehender Sturm schiebt alle herum.',
   fits: (mode, map) => !map.moving,
   force(g) {
     const a = g.t * T.WIND_TURN;

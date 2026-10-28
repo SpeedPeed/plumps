@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'tausch', name: 'Platztausch', emoji: '🔀', desc: 'Alle paar Sekunden tauschen alle die Plätze.',
+  id: 'tausch', name: 'Platztausch', desc: 'Alle paar Sekunden tauschen alle die Plätze.',
   fits: (mode) => mode !== 'farbe',
   setup(g) { g.cs.swapT = 7; },
   step(g, dt, alive) {

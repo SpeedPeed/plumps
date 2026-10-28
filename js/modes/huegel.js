@@ -11,7 +11,7 @@ function moveZone(g) {
 }
 
 export default {
-  id: 'huegel', name: 'Hügelkönig', emoji: '⛰️',
+  id: 'huegel', name: 'Hügelkönig',
   desc: 'Steh ALLEIN im leuchtenden Kreis, bis dein Balken voll ist.',
   weight: 1,
   time: () => T.HUEGEL_TIME,

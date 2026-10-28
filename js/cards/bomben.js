@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'bomben', name: 'Bombenhagel', emoji: '💣', desc: 'Es regnet Bomben. Weg von den roten Kreisen!',
+  id: 'bomben', name: 'Bombenhagel', desc: 'Es regnet Bomben. Weg von den roten Kreisen!',
   setup(g) { g.cs.bombT = 1.5; },
   step(g, dt, alive) {
     g.cs.bombT -= dt;

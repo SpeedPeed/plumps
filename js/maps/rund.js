@@ -1,4 +1,4 @@
 export default {
-  id: 'rund', name: 'Rundinsel', emoji: '🏝️',
+  id: 'rund', name: 'Rundinsel',
   shapes: [{ k: 'c', x: 0, y: 0, r: 300 }],
 };

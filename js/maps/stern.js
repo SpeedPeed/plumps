@@ -1,7 +1,7 @@
 const TAU = Math.PI * 2;
 
 export default {
-  id: 'stern', name: 'Seestern', emoji: '⭐',
+  id: 'stern', name: 'Seestern',
   shapes: [
     { k: 'c', x: 0, y: 0, r: 150 },
     ...[0, 1, 2, 3, 4].map(i => {

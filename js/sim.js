@@ -14,13 +14,15 @@ import { botThink } from './bots.js';
 export { MAPS, MAP_IDS, MODES, MODE_IDS, CARDS, CARD_IDS, ITEMS, ITEM_IDS };
 export { BOT_LEVELS } from './tuning.js';
 
-export const COLORS = ['#ff5d73', '#3fb6ff', '#ffd23f', '#5ee27a', '#b57bff', '#ff9f43'];
+// Farbenblind-freundlich (Okabe-Ito), jede Farbe hat zusätzlich ein Muster (docs/STYLE.md)
+export const COLORS = ['#E8603C', '#4DB3EA', '#F4D54A', '#17A37A', '#CC79A7', '#3A5FBF'];
 export const MAX_PLAYERS = 6;
-export const HATS = ['', '🎩', '🧢', '👒', '🎓', '⛑️', '🪖', '🎀', '🌻', '🍒', '🐸', '🦄', '🍄', '🎃'];
-export const EMOTES = ['😂', '😱', '😡', '💩', '👋'];
+export const HAT_COUNT = 14;    // Hüte 0..13 (0 = ohne), gezeichnet in js/art/icons.js
+export const EMOTE_COUNT = 5;
 
 const TAU = Math.PI * 2;
 const r1 = (v) => Math.round(v * 10) / 10;
+const validHat = (h) => ((h | 0) >= 0 && (h | 0) < HAT_COUNT ? h | 0 : 0);
 const newStats = () => ({ ko: 0, falls: 0, pups: 0, items: 0, dashes: 0, saves: 0, counters: 0, breaks: 0 });
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -118,7 +120,7 @@ export class Game {
     const ci = this.freeColor();
     const p = {
       id, name: (name || 'Blob').slice(0, 14), bot, ci, color: COLORS[ci],
-      hat: HATS[hat | 0] !== undefined ? hat | 0 : 0,
+      hat: validHat(hat),
       botLevel: null, // null = Stärke aus der Lobby
       x: 0, y: 0, vx: 0, vy: 0, r: T.BLOB_R, fx: 0, fy: 1,
       state: 'ghost', fallT: 0, gx: 0, gy: 0,
@@ -130,7 +132,7 @@ export class Game {
       botBrain: { cd: 0, wobble: this.rng.range(0, 6), goal: null, goalT: 0, releaseAt: null, seenDash: {} },
     };
     this.resetCombat(p);
-    if (bot) p.hat = 1 + this.rng.int(HATS.length - 1);
+    if (bot) p.hat = 1 + this.rng.int(HAT_COUNT - 1);
     this.players.set(id, p);
     // Wer mitten in einer Runde dazukommt, ist bis zur nächsten Runde Geist.
     if (this.phase === 'lobby') this.layoutPlayers();
@@ -169,12 +171,12 @@ export class Game {
 
   setHat(id, hat) {
     const p = this.players.get(id);
-    if (p && HATS[hat | 0] !== undefined) p.hat = hat | 0;
+    if (p) p.hat = validHat(hat);
   }
 
   emote(id, i) {
     const p = this.players.get(id);
-    if (!p || !EMOTES[i | 0] || p.emoT > 0.6) return;
+    if (!p || (i | 0) < 0 || (i | 0) >= EMOTE_COUNT || p.emoT > 0.6) return;
     p.emo = i | 0; p.emoT = T.EMOTE_TIME;
   }
 
@@ -779,11 +781,11 @@ export class Game {
       const best = list.reduce((a, p) => (!a || p.stats[key] > a.stats[key] ? p : a), null);
       if (best && best.stats[key] > 0) out.push([emoji, title, best.name, `${best.stats[key]} ${unit}`]);
     };
-    top('ko', '🥊', 'Rausschubser', 'Rauswürfe');
-    top('falls', '🌊', 'Wasserratte', 'mal geplumpst');
-    top('pups', '💨', 'Pups-Meister', 'Pups-Treffer');
-    top('items', '🎁', 'Sammler', 'Power-ups');
-    top('dashes', '⚡', 'Dash-Junkie', 'Dashes');
+    top('ko', 'glove', 'Rausschubser', 'Rauswürfe');
+    top('falls', 'welle', 'Wasserratte', 'mal geplumpst');
+    top('pups', 'pups', 'Pups-Meister', 'Pups-Treffer');
+    top('items', 'geschenk', 'Sammler', 'Power-ups');
+    top('dashes', 'blitz', 'Dash-Junkie', 'Dashes');
     return out;
   }
 

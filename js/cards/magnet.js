@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'magnet', name: 'Magnetfeld', emoji: '🧲', desc: 'Alle Blobs ziehen sich gegenseitig an.',
+  id: 'magnet', name: 'Magnetfeld', desc: 'Alle Blobs ziehen sich gegenseitig an.',
   force(g, p, alive) {
     let ax = 0, ay = 0;
     for (const q of alive) {

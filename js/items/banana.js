@@ -1,7 +1,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'banana', name: 'Bananen', emoji: '🍌', desc: 'Du lässt Bananenschalen fallen.',
+  id: 'banana', name: 'Bananen', desc: 'Du lässt Bananenschalen fallen.',
   apply(g, p) { p.pw.banana = T.BANANA_DROP_TIME; p.bananaT = 0; },
   effects: {
     // Solange der Effekt läuft, fallen hinter dem Blob Schalen auf den Boden

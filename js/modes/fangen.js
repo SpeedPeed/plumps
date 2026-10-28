@@ -1,6 +1,7 @@
 // Glibber-Fangen: Wer den Glibber hat, gibt ihn durch Rempeln weiter.
 // Wer ihn am kürzesten hatte, gewinnt.
 import { T } from '../tuning.js';
+import { iconHTML } from '../art/icons.js';
 
 function passTag(g, id) {
   g.ms.tagger = id;
@@ -9,7 +10,7 @@ function passTag(g, id) {
 }
 
 export default {
-  id: 'fangen', name: 'Glibber-Fangen', emoji: '🧟',
+  id: 'fangen', name: 'Glibber-Fangen',
   desc: 'Wer den Glibber hat, gibt ihn durch Rempeln weiter. Wer ihn am kürzesten hatte, gewinnt.',
   weight: 1,
   time: () => T.FANGEN_TIME,
@@ -51,5 +52,5 @@ export default {
 
   snapshot(g, s) { s.ig = g.ms.tagger || null; },
 
-  hudMetric: (p) => `🧟 ${p.m.toFixed(1)}s`,
+  hudMetric: (p) => `${iconHTML('glibber')}${p.m.toFixed(1)}s`,
 };

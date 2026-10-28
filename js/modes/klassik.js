@@ -2,7 +2,7 @@
 import { T } from '../tuning.js';
 
 export default {
-  id: 'klassik', name: 'Letzter Blob', emoji: '🏝️',
+  id: 'klassik', name: 'Letzter Blob',
   desc: 'Wer als Letzter auf der Insel steht, gewinnt die Runde.',
   weight: 2,
   shrinkStart: () => T.KLASSIK_SHRINK,

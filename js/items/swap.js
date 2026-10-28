@@ -1,5 +1,5 @@
 export default {
-  id: 'swap', name: 'Tauschticket', emoji: '🔄', desc: 'Platztausch mit einem zufälligen Gegner!',
+  id: 'swap', name: 'Tauschticket', desc: 'Platztausch mit einem zufälligen Gegner!',
   apply(g, p, alive) {
     const others = alive.filter(q => q !== p && q.state === 'alive');
     if (!others.length) return;

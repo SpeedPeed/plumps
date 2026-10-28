@@ -1,11 +1,12 @@
 // Münzrausch: Münzen sammeln, wer fällt, verliert die Hälfte.
 import { T } from '../tuning.js';
+import { iconHTML } from '../art/icons.js';
 import { onGround } from '../geometry.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 
 export default {
-  id: 'muenzen', name: 'Münzrausch', emoji: '🪙',
+  id: 'muenzen', name: 'Münzrausch',
   desc: 'Sammle Münzen! Wer ins Wasser fällt, verliert die Hälfte.',
   weight: 1,
   time: () => T.MUENZEN_TIME,
@@ -50,5 +51,5 @@ export default {
 
   snapshot(g, s) { s.cn = g.ms.coins.map(c => [r1(c.x), r1(c.y)]); },
 
-  hudMetric: (p) => `🪙 ${p.m}`,
+  hudMetric: (p) => `${iconHTML('muenze')}${p.m}`,
 };

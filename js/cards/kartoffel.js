@@ -9,7 +9,7 @@ function pass(g, id) {
 }
 
 export default {
-  id: 'kartoffel', name: 'Heiße Kartoffel', emoji: '🥔', desc: 'Wer sie hält, wenn sie explodiert, fliegt raus. Weitergeben durch Rempeln!',
+  id: 'kartoffel', name: 'Heiße Kartoffel', desc: 'Wer sie hält, wenn sie explodiert, fliegt raus. Weitergeben durch Rempeln!',
   fits: (mode) => mode !== 'fangen',
   setup(g) { g.cs.potato = null; g.cs.immune = 0; },
 

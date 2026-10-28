@@ -1,8 +1,9 @@
 // Drei Leben: Wer fällt, verliert ein Leben und kommt zurück. Ohne Leben wird man Geist.
 import { T } from '../tuning.js';
+import { iconHTML } from '../art/icons.js';
 
 export default {
-  id: 'leben', name: 'Drei Leben', emoji: '❤️',
+  id: 'leben', name: 'Drei Leben',
   desc: 'Jeder hat 3 Leben. Wer am Ende noch welche hat, gewinnt.',
   weight: 1,
   shrinkStart: () => T.LEBEN_SHRINK,
@@ -27,5 +28,5 @@ export default {
     return { winner: inGame[0] || null };
   },
 
-  hudMetric: (p) => (p.lv > 0 ? '❤️'.repeat(p.lv) : '💀'),
+  hudMetric: (p) => (p.lv > 0 ? iconHTML('herz').repeat(p.lv) : iconHTML('totenkopf')),
 };

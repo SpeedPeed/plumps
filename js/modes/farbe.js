@@ -1,5 +1,6 @@
 // Farbkampf: Die Insel in der eigenen Farbe anmalen.
 import { T } from '../tuning.js';
+import { iconHTML } from '../art/icons.js';
 import { onGround } from '../geometry.js';
 
 const CELL = 24;
@@ -12,7 +13,7 @@ function countCells(g) {
 }
 
 export default {
-  id: 'farbe', name: 'Farbkampf', emoji: '🎨',
+  id: 'farbe', name: 'Farbkampf',
   desc: 'Färb die Insel in deiner Farbe. Wer am meisten Fläche hat, gewinnt.',
   weight: 1,
   still: true,   // nur auf Inseln, die sich nicht bewegen
@@ -66,6 +67,6 @@ export default {
 
   hudMetric: (p, s) => {
     const total = s.p.reduce((n, q) => n + q.m, 0);
-    return `🎨 ${total ? Math.round(p.m / total * 100) : 0}%`;
+    return `${iconHTML('farbe')}${total ? Math.round(p.m / total * 100) : 0}%`;
   },
 };
