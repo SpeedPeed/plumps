@@ -19,14 +19,17 @@ Ein kostenloses Online-Partyspiel für **2–6 Spieler** direkt im Browser – a
 
 **10 Inseln**, darunter das sich drehende ✳️ Drehkreuz, die ⚖️ Wippe, das 🎠 Karussell mit fahrenden Inseln, ⭐ Seestern, 🌉 Brückeninseln und ⭕ Ringinsel.
 
-**20 Chaos-Karten**: Wer im Gesamtstand hinten liegt, wählt aus 3 Karten, was die nächste Runde verändert. Zum Beispiel 🧊 Eisbahn, 🪞 Spiegelwelt, 💣 Bombenhagel, 🥔 Heiße Kartoffel, 🌑 Stromausfall, 🍌 Bananenrepublik, 🐌 Zeitlupe oder 🍮 Wackelpudding.
+**20 Chaos-Karten**: Wer im Gesamtstand hinten liegt, wählt in 6 Sekunden aus 3 Karten, was die nächste Runde verändert. Zum Beispiel 🧊 Eisbahn, 🪞 Spiegelwelt, 💣 Bombenhagel, 🥔 Heiße Kartoffel, 🌑 Stromausfall, 🍌 Bananenrepublik, 🐌 Zeitlupe oder 🍮 Wackelpudding.
 
 **8 Power-ups** in Seifenblasen: 🥊 Boxhandschuh, ⚓ Anker, 🍄 Riesenpilz, 👟 Turboschuhe, 🍌 Bananen, 💣 Bombe, 🔄 Tauschticket, 🫥 Tarnkappe.
 
 Außerdem:
+- **Kaum Wartezeit** – Zwischen den Runden schwabbelt ihr schon frei auf der nächsten Insel herum (mit Emotes, ohne Punkte), während Kartenwahl und Zwischenstand oben eingeblendet sind. Von Rundenende bis zum nächsten Start vergehen rund 8 Sekunden.
+- **Wiederholung** – Am Rundenende läuft der entscheidende Schubser noch einmal in Zeitlupe: „Moppel schickt Peter baden!“
+- **Finale** – Wer Matchball hat (nur noch 1 Punkt zum Sieg), muss eine Finalrunde „Letzter Blob“ auf kleiner Insel gewinnen – mit eigener Musik. Gewinnt jemand anderes, bekommt er den Punkt und es geht normal weiter, bis zum nächsten Finale.
 - **Geister 👻** – Wer im Modus „Letzter Blob“ rausfliegt, schwebt weiter und kann mit einer **Pups-Welle** die Lebenden ins Wasser blasen.
 - **Königsmord 👑** – Wer den Führenden ins Wasser schubst, bekommt einen Bonuspunkt.
-- **Hüte & Emotes** – Such dir in der Lobby einen Hut aus, im Spiel gibt's Emotes auf den Tasten 1–5.
+- **Hüte, Farben & Emotes** – Such dir in der Lobby einen Hut und eine freie Farbe aus, im Spiel gibt's Emotes auf den Tasten 1–5.
 - **Auszeichnungen** am Ende: Rausschubser, Wasserratte, Pups-Meister, Sammler, Dash-Junkie.
 - **Bots 🤖** in drei Stärken (Leicht, Mittel, Schwer) für kleine Runden.
 - **Jede Insel hat ihr eigenes Thema:** Tropen, Schrottplatz, Vulkan, Süßigkeiten, Korallenriff, Acker, Holzfloß …
@@ -60,7 +63,13 @@ Gamepads funktionieren auch.
 
 1. Einer öffnet das Spiel und klickt **Raum erstellen**.
 2. Er schickt den **Einladungslink** (oder den 4-Buchstaben-Code) an die anderen.
-3. Alle treten bei, der Host klickt **Los geht's!**
+3. Alle treten bei, suchen sich Hut und Farbe aus und tippen auf **Bereit!**
+4. Der Host sieht, wer bereit ist, und klickt **Los geht's!**
+
+- Alle sehen in der Lobby die Einstellungen des Hosts (Punkte zum Sieg, Bot-Stärke, Modi).
+- Der Host kann in der Lobby Spieler und Bots mit ✕ entfernen.
+- **Später dazukommen** geht jederzeit: Wer mitten im Match beitritt, startet mit dem Punktestand des Letztplatzierten.
+- **Wer geht** (oder dessen Verbindung abreißt), wird sofort durch einen Bot ersetzt – Punkte und Hut bleiben.
 
 Der Host sollte den Tab offen lassen – sein Browser ist der Server.
 
@@ -122,6 +131,8 @@ node tools/simtest.mjs --quick
 
 Simuliert ohne Grafik Runden nur mit Bots, in allen Kombinationen aus Modus, Insel und Karte. Der Test meldet:
 - Abstürze und Runden ohne Ende
+- die Pause zwischen den Runden (Ziel: höchstens ~8 s)
+- ob jedes Match im Finale entschieden wird
 - durchschnittliche Rundendauer pro Modus
 - Siegverteilung nach Bot-Stärke
 - die Prüfungen zur Treffer-Zuordnung
@@ -152,3 +163,4 @@ Jede Datei in `js/modes/`, `js/cards/`, `js/items/` und `js/maps/` ist ein Objek
 
 - In seltenen Netzwerken (strenge Firmen- oder Mobilfunk-NAT) klappt die direkte Verbindung nicht. Dann hilft meistens WLAN statt mobiler Daten.
 - Wer mitten in einer Runde beitritt, ist bis zur nächsten Runde ein Geist.
+- Wer die Verbindung verliert, kann (noch) nicht auf seinen alten Platz zurück – sein Bot spielt weiter.
